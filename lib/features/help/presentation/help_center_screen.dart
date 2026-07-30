@@ -9,19 +9,25 @@ class HelpCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('GezaYo Support', style: AppTypography.headlineMedium()),
+        title: Text(
+          'GezaYo Support',
+          style: AppTypography.headlineMedium(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none,
-                color: AppColors.textPrimary),
-            onPressed: () {},
+            icon: Icon(Icons.notifications_none,
+                color: theme.colorScheme.onSurface),
+            onPressed: () => context.push('/settings/notifications'),
           ),
         ],
       ),
@@ -30,37 +36,28 @@ class HelpCenterScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // How can we help search banner
+            // How can we help banner
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.parcelBg,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('How can we help?',
-                      style: AppTypography.headlineLarge(
-                          color: AppColors.primary)),
+                  Text(
+                    'How can we help?',
+                    style: AppTypography.headlineLarge(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
-                    'Search our knowledge base or contact us directly for immediate assistance.',
+                    'Browse our FAQs or contact us directly for immediate assistance.',
                     style: AppTypography.bodyMedium(
-                        color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search FAQs, orders, or topics...',
-                      prefixIcon:
-                          const Icon(Icons.search, color: AppColors.textMuted),
-                      fillColor: Colors.white,
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -69,7 +66,7 @@ class HelpCenterScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // URGENT HELP Call Emergency Button (Red)
+            // URGENT HELP Call Emergency Button
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -148,27 +145,34 @@ class HelpCenterScreen extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Report a Problem Dotted Card
+            // Report a Problem Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder, width: 1.5),
+                border:
+                    Border.all(color: theme.colorScheme.outline, width: 1.5),
               ),
               child: Column(
                 children: [
                   const Icon(Icons.warning_amber_rounded,
                       color: AppColors.accentOrange, size: 36),
                   const SizedBox(height: 8),
-                  Text('Report a Problem', style: AppTypography.titleLarge()),
+                  Text(
+                    'Report a Problem',
+                    style: AppTypography.titleLarge(
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'Missing items, payment issues, or delivery concerns',
                     textAlign: TextAlign.center,
-                    style:
-                        AppTypography.bodySmall(color: AppColors.textSecondary),
+                    style: AppTypography.bodySmall(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -180,9 +184,18 @@ class HelpCenterScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Common Questions', style: AppTypography.headlineMedium()),
-                Text('View All',
-                    style: AppTypography.titleMedium(color: AppColors.primary)),
+                Text(
+                  'Common Questions',
+                  style: AppTypography.headlineMedium(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                Text(
+                  'View All',
+                  style: AppTypography.titleMedium(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             ),
 
@@ -190,49 +203,67 @@ class HelpCenterScreen extends StatelessWidget {
 
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Column(
                 children: [
                   ExpansionTile(
-                    title: Text('How do I track my GezaYo delivery?',
-                        style: AppTypography.titleMedium()),
+                    title: Text(
+                      'How do I track my GezaYo delivery?',
+                      style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'You can track your rider in real-time by tapping on "Orders" in the bottom menu and selecting your active order.',
-                          style: AppTypography.bodyMedium(),
+                          style: AppTypography.bodyMedium(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const Divider(height: 1),
                   ExpansionTile(
-                    title: Text('What are the delivery hours in Kigali?',
-                        style: AppTypography.titleMedium()),
+                    title: Text(
+                      'What are the delivery hours in Kigali?',
+                      style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'GezaYo operates 24/7 across Kigali City and surrounding suburbs.',
-                          style: AppTypography.bodyMedium(),
+                          style: AppTypography.bodyMedium(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const Divider(height: 1),
                   ExpansionTile(
-                    title: Text("Can I cancel my order after it's placed?",
-                        style: AppTypography.titleMedium()),
+                    title: Text(
+                      "Can I cancel my order after it's placed?",
+                      style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'Yes, you can cancel your request before a rider accepts it without any penalty fee.',
-                          style: AppTypography.bodyMedium(),
+                          style: AppTypography.bodyMedium(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],

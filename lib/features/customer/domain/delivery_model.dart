@@ -12,6 +12,7 @@ enum DeliveryStatus {
 
 class DeliveryModel extends Equatable {
   final String id;
+  final String customerUid;
   final String pickupAddress;
   final String dropoffAddress;
   final String packageType; // 'Food', 'Parcel', 'Grocery', 'Other'
@@ -20,19 +21,18 @@ class DeliveryModel extends Equatable {
   final String instructions;
   final double estimatedFareRwf;
   final DeliveryStatus status;
+  final String? assignedRiderUid;
   final String? assignedRiderName;
   final String? assignedRiderPhone;
   final double assignedRiderRating;
   final int estimatedArrivalMins;
-  final List<String> items;
-  final double baseFare;
-  final double distanceFare;
-  final double peakHourBonus;
   final double tipAmount;
   final int ratingGiven;
+  final String createdAt;
 
   const DeliveryModel({
     required this.id,
+    this.customerUid = '',
     required this.pickupAddress,
     required this.dropoffAddress,
     required this.packageType,
@@ -40,25 +40,21 @@ class DeliveryModel extends Equatable {
     this.instructions = '',
     required this.estimatedFareRwf,
     this.status = DeliveryStatus.searching,
+    this.assignedRiderUid,
     this.assignedRiderName,
-    this.assignedRiderPhone = '+250 788 123 456',
-    this.assignedRiderRating = 4.9,
-    this.estimatedArrivalMins = 12,
-    this.items = const [
-      '2x Grilled Tilapia with Isombe',
-      '1x Ibirayi Special Fries'
-    ],
-    this.baseFare = 3000.0,
-    this.distanceFare = 1200.0,
-    this.peakHourBonus = 300.0,
+    this.assignedRiderPhone,
+    this.assignedRiderRating = 0.0,
+    this.estimatedArrivalMins = 0,
     this.tipAmount = 0.0,
     this.ratingGiven = 0,
+    this.createdAt = '',
   });
 
-  double get totalPaid => baseFare + distanceFare + peakHourBonus + tipAmount;
+  double get totalPaid => estimatedFareRwf + tipAmount;
 
   DeliveryModel copyWith({
     String? id,
+    String? customerUid,
     String? pickupAddress,
     String? dropoffAddress,
     String? packageType,
@@ -66,19 +62,18 @@ class DeliveryModel extends Equatable {
     String? instructions,
     double? estimatedFareRwf,
     DeliveryStatus? status,
+    String? assignedRiderUid,
     String? assignedRiderName,
     String? assignedRiderPhone,
     double? assignedRiderRating,
     int? estimatedArrivalMins,
-    List<String>? items,
-    double? baseFare,
-    double? distanceFare,
-    double? peakHourBonus,
     double? tipAmount,
     int? ratingGiven,
+    String? createdAt,
   }) {
     return DeliveryModel(
       id: id ?? this.id,
+      customerUid: customerUid ?? this.customerUid,
       pickupAddress: pickupAddress ?? this.pickupAddress,
       dropoffAddress: dropoffAddress ?? this.dropoffAddress,
       packageType: packageType ?? this.packageType,
@@ -86,22 +81,21 @@ class DeliveryModel extends Equatable {
       instructions: instructions ?? this.instructions,
       estimatedFareRwf: estimatedFareRwf ?? this.estimatedFareRwf,
       status: status ?? this.status,
+      assignedRiderUid: assignedRiderUid ?? this.assignedRiderUid,
       assignedRiderName: assignedRiderName ?? this.assignedRiderName,
       assignedRiderPhone: assignedRiderPhone ?? this.assignedRiderPhone,
       assignedRiderRating: assignedRiderRating ?? this.assignedRiderRating,
       estimatedArrivalMins: estimatedArrivalMins ?? this.estimatedArrivalMins,
-      items: items ?? this.items,
-      baseFare: baseFare ?? this.baseFare,
-      distanceFare: distanceFare ?? this.distanceFare,
-      peakHourBonus: peakHourBonus ?? this.peakHourBonus,
       tipAmount: tipAmount ?? this.tipAmount,
       ratingGiven: ratingGiven ?? this.ratingGiven,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'customerUid': customerUid,
       'pickupAddress': pickupAddress,
       'dropoffAddress': dropoffAddress,
       'packageType': packageType,
@@ -109,43 +103,39 @@ class DeliveryModel extends Equatable {
       'instructions': instructions,
       'estimatedFareRwf': estimatedFareRwf,
       'status': status.name,
+      'assignedRiderUid': assignedRiderUid,
       'assignedRiderName': assignedRiderName,
       'assignedRiderPhone': assignedRiderPhone,
       'assignedRiderRating': assignedRiderRating,
       'estimatedArrivalMins': estimatedArrivalMins,
-      'items': items,
-      'baseFare': baseFare,
-      'distanceFare': distanceFare,
-      'peakHourBonus': peakHourBonus,
       'tipAmount': tipAmount,
       'ratingGiven': ratingGiven,
+      'createdAt': createdAt,
     };
   }
 
   factory DeliveryModel.fromMap(Map<String, dynamic> map) {
     return DeliveryModel(
       id: map['id'] ?? '',
+      customerUid: map['customerUid'] ?? '',
       pickupAddress: map['pickupAddress'] ?? '',
       dropoffAddress: map['dropoffAddress'] ?? '',
       packageType: map['packageType'] ?? 'Parcel',
       weightClass: map['weightClass'] ?? 'Light (<5kg)',
       instructions: map['instructions'] ?? '',
-      estimatedFareRwf: (map['estimatedFareRwf'] ?? 2500.0).toDouble(),
+      estimatedFareRwf: (map['estimatedFareRwf'] ?? 0.0).toDouble(),
       status: DeliveryStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => DeliveryStatus.searching,
       ),
+      assignedRiderUid: map['assignedRiderUid'],
       assignedRiderName: map['assignedRiderName'],
-      assignedRiderPhone: map['assignedRiderPhone'] ?? '+250 788 123 456',
-      assignedRiderRating: (map['assignedRiderRating'] ?? 4.9).toDouble(),
-      estimatedArrivalMins: map['estimatedArrivalMins'] ?? 12,
-      items: List<String>.from(map['items'] ??
-          ['2x Grilled Tilapia with Isombe', '1x Ibirayi Special Fries']),
-      baseFare: (map['baseFare'] ?? 3000.0).toDouble(),
-      distanceFare: (map['distanceFare'] ?? 1200.0).toDouble(),
-      peakHourBonus: (map['peakHourBonus'] ?? 300.0).toDouble(),
+      assignedRiderPhone: map['assignedRiderPhone'],
+      assignedRiderRating: (map['assignedRiderRating'] ?? 0.0).toDouble(),
+      estimatedArrivalMins: map['estimatedArrivalMins'] ?? 0,
       tipAmount: (map['tipAmount'] ?? 0.0).toDouble(),
       ratingGiven: map['ratingGiven'] ?? 0,
+      createdAt: map['createdAt'] ?? '',
     );
   }
 
@@ -157,6 +147,7 @@ class DeliveryModel extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        customerUid,
         pickupAddress,
         dropoffAddress,
         packageType,
@@ -164,15 +155,13 @@ class DeliveryModel extends Equatable {
         instructions,
         estimatedFareRwf,
         status,
+        assignedRiderUid,
         assignedRiderName,
         assignedRiderPhone,
         assignedRiderRating,
         estimatedArrivalMins,
-        items,
-        baseFare,
-        distanceFare,
-        peakHourBonus,
         tipAmount,
         ratingGiven,
+        createdAt,
       ];
 }

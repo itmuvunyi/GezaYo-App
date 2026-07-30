@@ -1,24 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_bottom_nav.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../auth/domain/user_model.dart';
+import '../../../auth/presentation/auth_notifier.dart';
 
 class CustomerHomeScreen extends ConsumerWidget {
   const CustomerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final firestoreService = ref.watch(firestoreServiceProvider);
+    final displayName = authState.user?.fullName.split(' ').first ?? 'Customer';
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: CustomAppBar(
         title: 'GezaYo',
-        userName: 'Jean-Paul',
-        onNotificationTap: () {},
+        userName: displayName,
+        onNotificationTap: () => context.push('/notifications'),
         onAvatarTap: () => context.push('/profile'),
       ),
       body: Stack(
@@ -33,18 +42,20 @@ class CustomerHomeScreen extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.cardBorder),
+                    border: Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, color: AppColors.textMuted),
+                      Icon(Icons.search,
+                          color: theme.colorScheme.onSurfaceVariant),
                       const SizedBox(width: 12),
                       Text(
                         'What are you sending today?',
-                        style:
-                            AppTypography.bodyLarge(color: AppColors.textMuted),
+                        style: AppTypography.bodyLarge(
+                            color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -102,7 +113,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                     Text(
                       'Nearby Riders',
                       style: AppTypography.headlineMedium(
-                          color: AppColors.textPrimary),
+                          color: theme.colorScheme.onSurface),
                     ),
                     StatusBadge.live(),
                   ],
@@ -110,12 +121,24 @@ class CustomerHomeScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // Map Container
+                // Map Container listening to real-time online riders
                 SizedBox(
                   height: 240,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: const SimulatedMapWidget(showRiderPins: true),
+                  child: StreamBuilder<List<UserModel>>(
+                    stream: firestoreService.getOnlineRidersStream(),
+                    builder: (context, snapshot) {
+                      final onlineRiders = snapshot.data ?? [];
+                      final riderCoords = onlineRiders
+                          .map((r) => LatLng(r.latitude, r.longitude))
+                          .toList();
+
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SimulatedMapWidget(
+                          riderLocations: riderCoords,
+                        ),
+                      );
+                    },
                   ),
                 ),
 

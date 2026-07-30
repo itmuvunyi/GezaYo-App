@@ -16,18 +16,23 @@ class LanguageScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
     final selectedLang = authState.selectedLanguage;
     final notifier = ref.read(authNotifierProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('App Language', style: AppTypography.headlineMedium()),
+        title: Text(
+          'App Language',
+          style: AppTypography.headlineMedium(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -36,14 +41,16 @@ class LanguageScreen extends ConsumerWidget {
           children: [
             Text(
               'Select your preferred language. Changes apply across the entire app.',
-              style: AppTypography.bodyMedium(color: AppColors.textSecondary),
+              style: AppTypography.bodyMedium(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 20),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Column(
                 children: List.generate(_languages.length, (index) {
@@ -64,14 +71,14 @@ class LanguageScreen extends ConsumerWidget {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppColors.primaryMint
+                                ? theme.colorScheme.primaryContainer
                                 : AppColors.parcelBg,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.language,
                             color: isSelected
-                                ? AppColors.primary
+                                ? theme.colorScheme.primary
                                 : AppColors.textMuted,
                             size: 20,
                           ),
@@ -80,21 +87,21 @@ class LanguageScreen extends ConsumerWidget {
                           item.name,
                           style: AppTypography.titleLarge(
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.textPrimary,
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
                           ),
                         ),
                         subtitle: Text(
                           item.nativeName,
                           style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         trailing: isSelected
-                            ? const Icon(Icons.check_circle,
-                                color: AppColors.primary)
-                            : const Icon(Icons.radio_button_unchecked,
-                                color: AppColors.cardBorder),
+                            ? Icon(Icons.check_circle,
+                                color: theme.colorScheme.primary)
+                            : Icon(Icons.radio_button_unchecked,
+                                color: theme.colorScheme.outline),
                       ),
                       if (index < _languages.length - 1)
                         const Divider(height: 1),

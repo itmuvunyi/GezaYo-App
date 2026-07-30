@@ -24,13 +24,13 @@ class StatusBadge extends StatelessWidget {
       );
 
   factory StatusBadge.urgent() => const StatusBadge(
-        text: '⚡ URGENT',
+        text: 'URGENT',
         backgroundColor: AppColors.statusErrorBg,
         textColor: AppColors.statusError,
       );
 
   factory StatusBadge.onTheWay() => const StatusBadge(
-        text: '🚴 On the way',
+        text: 'On the way',
         backgroundColor: AppColors.statusSuccessBg,
         textColor: AppColors.primary,
       );

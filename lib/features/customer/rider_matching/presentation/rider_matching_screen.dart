@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
 import '../../../../core/widgets/custom_bottom_nav.dart';
-import '../../domain/rider_model.dart';
+import '../../../auth/domain/user_model.dart';
+import '../../domain/delivery_model.dart';
 import '../../presentation/delivery_notifier.dart';
 
 class RiderMatchingScreen extends ConsumerWidget {
@@ -15,37 +18,57 @@ class RiderMatchingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deliveryState = ref.watch(deliveryNotifierProvider);
-    final notifier = ref.read(deliveryNotifierProvider.notifier);
+    final firestoreService = ref.watch(firestoreServiceProvider);
+    final theme = Theme.of(context);
+    final delivery = deliveryState.activeDelivery;
+
+    // Listen to delivery status — when rider accepts, automatically go to live tracking
+    ref.listen<DeliveryState>(deliveryNotifierProvider, (previous, next) {
+      if (next.activeDelivery?.status == DeliveryStatus.assigned) {
+        context.push('/live-tracking');
+      }
+    });
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: const CustomAppBar(
         showBackButton: true,
         title: 'GezaYo',
-        userName: 'Jean-Paul',
       ),
       body: Stack(
         children: [
-          // Upper Radar Map Canvas
-          const Positioned.fill(
-            child: SimulatedMapWidget(
-              showRiderPins: true,
-              showRadarScan: true,
-              centerLabel: '5 nearby in Kigali City',
+          // Upper Radar Map Canvas with real-time online riders
+          Positioned.fill(
+            child: StreamBuilder<List<UserModel>>(
+              stream: firestoreService.getOnlineRidersStream(),
+              builder: (context, snapshot) {
+                final onlineRiders = snapshot.data ?? [];
+                final riderCoords = onlineRiders
+                    .map((r) => LatLng(r.latitude, r.longitude))
+                    .toList();
+
+                return SimulatedMapWidget(
+                  riderLocations: riderCoords,
+                  centerLabel: onlineRiders.isEmpty
+                      ? 'Looking for nearby riders...'
+                      : '${onlineRiders.length} rider(s) online',
+                );
+              },
             ),
           ),
 
           // Bottom Sheet Content overlay
           DraggableScrollableSheet(
-            initialChildSize: 0.55,
-            minChildSize: 0.4,
-            maxChildSize: 0.85,
+            initialChildSize: 0.45,
+            minChildSize: 0.35,
+            maxChildSize: 0.7,
             builder: (context, scrollController) {
               return Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceLight,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  boxShadow: [
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: const [
                     BoxShadow(
                         color: Colors.black12,
                         blurRadius: 16,
@@ -63,60 +86,111 @@ class RiderMatchingScreen extends ConsumerWidget {
                         width: 40,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: AppColors.cardBorder,
+                          color: theme.dividerColor,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 16),
-
-                    // Auto-assign vs Select Manually Toggle
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ModeToggleButton(
-                            label: '⚡ Auto-assign',
-                            isSelected: deliveryState.isAutoAssign,
-                            onTap: () {
-                              notifier.toggleAssignMode(true);
-                              // Auto assign first rider
-                              if (deliveryState.availableRiders.isNotEmpty) {
-                                notifier.selectRider(
-                                    deliveryState.availableRiders.first);
-                                context.push('/live-tracking');
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ModeToggleButton(
-                            label: '👆 Select Manually',
-                            isSelected: !deliveryState.isAutoAssign,
-                            onTap: () => notifier.toggleAssignMode(false),
-                          ),
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 20),
 
-                    Text('Available Drivers Nearby',
-                        style: AppTypography.headlineMedium()),
+                    // Searching Indicator Animation & Status
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySubtle,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const CircularProgressIndicator(
+                              color: AppColors.primary,
+                              strokeWidth: 3,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            delivery?.status == DeliveryStatus.assigned
+                                ? 'Rider Accepted Your Job!'
+                                : 'Searching for Available Riders...',
+                            style: AppTypography.headlineMedium(
+                                color: theme.colorScheme.onSurface),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            delivery?.status == DeliveryStatus.assigned
+                                ? 'Rider ${delivery?.assignedRiderName ?? ''} is on their way'
+                                : 'Your job post is live. Nearby riders will be notified to accept.',
+                            style: AppTypography.bodyMedium(
+                                color: theme.colorScheme.onSurfaceVariant),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
 
-                    // Rider Cards List
-                    ...deliveryState.availableRiders.map((rider) {
-                      return _RiderCardTile(
-                        rider: rider,
-                        onTap: () {
-                          notifier.selectRider(rider);
-                          context.push('/live-tracking');
-                        },
-                      );
-                    }),
+                    // Order Details Summary Card
+                    if (delivery != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('YOUR OFFERED PRICE',
+                                    style: AppTypography.labelMedium(
+                                        color: AppColors.primary)),
+                                Text(
+                                  '${delivery.estimatedFareRwf.toStringAsFixed(0)} RWF',
+                                  style: AppTypography.headlineMedium(
+                                      color: theme.colorScheme.onSurface),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Row(
+                              children: [
+                                const Icon(Icons.radio_button_checked,
+                                    color: AppColors.statusSuccess, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Pick: ${delivery.pickupAddress}',
+                                      style: AppTypography.bodySmall(
+                                          color: theme.colorScheme.onSurface),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on,
+                                    color: AppColors.accentOrange, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                      'Drop: ${delivery.dropoffAddress}',
+                                      style: AppTypography.bodySmall(
+                                          color: theme.colorScheme.onSurface),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               );
@@ -130,149 +204,6 @@ class RiderMatchingScreen extends ConsumerWidget {
           if (index == 0) context.go('/customer');
           if (index == 2) context.push('/profile');
         },
-      ),
-    );
-  }
-}
-
-class _ModeToggleButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ModeToggleButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.parcelBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
-          ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: AppTypography.labelLarge(
-            color: isSelected ? Colors.white : AppColors.primary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RiderCardTile extends StatelessWidget {
-  final RiderModel rider;
-  final VoidCallback onTap;
-
-  const _RiderCardTile({
-    required this.rider,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Row(
-        children: [
-          // Rider Avatar with rating badge
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: AppColors.primarySubtle,
-                child: Text(
-                  rider.name[0],
-                  style: AppTypography.headlineMedium(color: AppColors.primary),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${rider.rating}',
-                        style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const Icon(Icons.star, size: 10, color: Colors.amber),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(width: 14),
-
-          // Details Column
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(rider.name, style: AppTypography.titleLarge()),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentOrangeLight,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        rider.etaText,
-                        style: AppTypography.labelMedium(
-                            color: AppColors.accentOrangeDark),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${rider.vehicleType} • ${rider.completedJobs} Completed',
-                  style:
-                      AppTypography.bodySmall(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          IconButton(
-            icon: const Icon(Icons.chevron_right, color: AppColors.textMuted),
-            onPressed: onTap,
-          ),
-        ],
       ),
     );
   }

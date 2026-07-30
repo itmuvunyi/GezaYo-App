@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/firestore_service.dart';
 import '../domain/delivery_model.dart';
 import '../domain/rider_model.dart';
 import '../data/delivery_repository.dart';
@@ -40,14 +42,24 @@ class DeliveryState {
 final deliveryNotifierProvider =
     StateNotifierProvider<DeliveryNotifier, DeliveryState>((ref) {
   final repo = ref.watch(deliveryRepositoryProvider);
-  return DeliveryNotifier(repo);
+  final firestore = ref.watch(firestoreServiceProvider);
+  return DeliveryNotifier(repo, firestore);
 });
 
 class DeliveryNotifier extends StateNotifier<DeliveryState> {
   final DeliveryRepository _repository;
+  final FirestoreService _firestoreService;
+  StreamSubscription? _deliverySubscription;
 
-  DeliveryNotifier(this._repository) : super(const DeliveryState()) {
+  DeliveryNotifier(this._repository, this._firestoreService)
+      : super(const DeliveryState()) {
     _initRiders();
+  }
+
+  @override
+  void dispose() {
+    _deliverySubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _initRiders() async {
@@ -62,6 +74,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     required String weightClass,
     required String instructions,
     required double estimatedFare,
+    String customerUid = '',
   }) async {
     state = state.copyWith(isLoading: true);
     final delivery = await _repository.createDeliveryRequest(
@@ -71,8 +84,24 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       weightClass: weightClass,
       instructions: instructions,
       estimatedFare: estimatedFare,
+      customerUid: customerUid,
     );
     state = state.copyWith(activeDelivery: delivery, isLoading: false);
+
+    // Listen to real-time updates for this delivery
+    if (delivery != null) {
+      listenToDelivery(delivery.id);
+    }
+  }
+
+  void listenToDelivery(String deliveryId) {
+    _deliverySubscription?.cancel();
+    _deliverySubscription =
+        _firestoreService.getDeliveryStream(deliveryId).listen((delivery) {
+      if (delivery != null && mounted) {
+        state = state.copyWith(activeDelivery: delivery);
+      }
+    });
   }
 
   Future<void> selectRider(RiderModel rider) async {
@@ -106,6 +135,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   Future<void> completeAndClearOrder() async {
     if (state.activeDelivery != null) {
       await _repository.clearActiveDelivery(state.activeDelivery!.id);
+      _deliverySubscription?.cancel();
       state = state.copyWith(clearActiveDelivery: true);
     }
   }

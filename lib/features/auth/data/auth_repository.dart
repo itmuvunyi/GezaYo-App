@@ -1,17 +1,22 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/services/backend_api_service.dart';
+import '../../../core/services/firestore_service.dart';
 import '../domain/user_model.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final storage = ref.watch(storageServiceProvider);
   final api = ref.watch(backendApiServiceProvider);
-  return AuthRepositoryImpl(storage, api);
+  final firestore = ref.watch(firestoreServiceProvider);
+  return AuthRepositoryImpl(storage, api, firestore);
 });
 
 abstract class AuthRepository {
   Future<UserModel?> loginWithEmail(String email, String password);
-  Future<UserModel?> signUpWithPhone(String phone, String name, String role);
+  Future<UserModel?> signUpWithEmail(
+      String email, String password, String name, String role);
   Future<UserModel?> signInWithGoogle();
   Future<void> logout();
   Future<UserModel?> switchRole(UserModel currentUser, String newRole);
@@ -21,32 +26,113 @@ abstract class AuthRepository {
 class AuthRepositoryImpl implements AuthRepository {
   final StorageService _storageService;
   final BackendApiService _apiService;
+  final FirestoreService _firestoreService;
 
-  AuthRepositoryImpl(this._storageService, this._apiService);
+  AuthRepositoryImpl(
+      this._storageService, this._apiService, this._firestoreService);
 
   @override
   Future<UserModel?> loginWithEmail(String email, String password) async {
+    try {
+      final credential = await fb.FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      if (credential.user != null) {
+        final fbUser = credential.user!;
+        final user = UserModel(
+          uid: fbUser.uid,
+          fullName: fbUser.displayName ?? email.split('@').first,
+          email: fbUser.email ?? email,
+          phoneNumber: fbUser.phoneNumber ?? '',
+          role: _storageService.getUserRole(),
+        );
+        await _firestoreService.saveUser(user);
+        await _storageService.setUserRole(user.role);
+        await _storageService.setAuthenticated(true);
+        return user;
+      }
+    } on fb.FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuth login error code: ${e.code}');
+      switch (e.code) {
+        case 'user-not-found':
+        case 'wrong-password':
+        case 'invalid-credential':
+          throw Exception('Invalid email address or password.');
+        case 'invalid-email':
+          throw Exception('The email address format is invalid.');
+        case 'user-disabled':
+          throw Exception('This user account has been disabled.');
+        case 'too-many-requests':
+          throw Exception(
+              'Too many failed attempts. Please try again in a few minutes.');
+        default:
+          throw Exception(e.message ?? 'Authentication failed.');
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+
     final response = await _apiService.loginWithEmail(email, password);
     if (response.isSuccess && response.data != null) {
       final user = UserModel.fromMap(response.data!);
+      await _firestoreService.saveUser(user);
       await _storageService.setUserRole(user.role);
       await _storageService.setAuthenticated(true);
       return user;
     }
-    return null;
+    throw Exception('Sign in failed. Please check your credentials.');
   }
 
   @override
-  Future<UserModel?> signUpWithPhone(
-      String phone, String name, String role) async {
-    final response = await _apiService.signUpWithPhone(phone, name, role);
+  Future<UserModel?> signUpWithEmail(
+      String email, String password, String name, String role) async {
+    try {
+      final credential = await fb.FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      if (credential.user != null) {
+        final fbUser = credential.user!;
+        await fbUser.updateDisplayName(name);
+        final user = UserModel(
+          uid: fbUser.uid,
+          fullName: name,
+          email: email,
+          phoneNumber: '',
+          role: role,
+        );
+        await _firestoreService.saveUser(user);
+        await _storageService.setUserRole(role);
+        await _storageService.setAuthenticated(true);
+        return user;
+      }
+    } on fb.FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuth signup error code: ${e.code}');
+      switch (e.code) {
+        case 'email-already-in-use':
+          throw Exception(
+              'An account already exists with this email. Try signing in.');
+        case 'invalid-email':
+          throw Exception('The email address format is invalid.');
+        case 'weak-password':
+          throw Exception('The password provided is too weak.');
+        default:
+          throw Exception(e.message ?? 'Registration failed.');
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+
+    final response = await _apiService.signUpWithPhone(email, name, role);
     if (response.isSuccess && response.data != null) {
-      final user = UserModel.fromMap(response.data!);
-      await _storageService.setUserRole(user.role);
+      final user = UserModel.fromMap(response.data!).copyWith(
+        email: email,
+        fullName: name,
+        role: role,
+      );
+      await _firestoreService.saveUser(user);
+      await _storageService.setUserRole(role);
       await _storageService.setAuthenticated(true);
       return user;
     }
-    return null;
+    throw Exception('Sign up failed. Please try again.');
   }
 
   @override
@@ -54,6 +140,7 @@ class AuthRepositoryImpl implements AuthRepository {
     final response = await _apiService.signInWithGoogle();
     if (response.isSuccess && response.data != null) {
       final user = UserModel.fromMap(response.data!);
+      await _firestoreService.saveUser(user);
       await _storageService.setUserRole(user.role);
       await _storageService.setAuthenticated(true);
       return user;
@@ -63,12 +150,16 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    try {
+      await fb.FirebaseAuth.instance.signOut();
+    } catch (_) {}
     await _storageService.setAuthenticated(false);
   }
 
   @override
   Future<UserModel?> switchRole(UserModel currentUser, String newRole) async {
     final updated = currentUser.copyWith(role: newRole);
+    await _firestoreService.saveUser(updated);
     await _storageService.setUserRole(newRole);
     return updated;
   }
@@ -79,11 +170,12 @@ class AuthRepositoryImpl implements AuthRepository {
     if (!isAuthenticated) return null;
 
     final role = _storageService.getUserRole();
+    final fbUser = fb.FirebaseAuth.instance.currentUser;
     return UserModel(
-      uid: 'usr-persisted-100',
-      fullName: role == 'rider' ? 'Jean Bosco K.' : 'Jean-Paul N.',
-      email: 'user@gezayo.rw',
-      phoneNumber: '+250 788 000 000',
+      uid: fbUser?.uid ?? 'usr-persisted-user',
+      fullName: fbUser?.displayName ?? (role == 'rider' ? 'Rider' : 'User'),
+      email: fbUser?.email ?? '',
+      phoneNumber: fbUser?.phoneNumber ?? '',
       role: role,
     );
   }

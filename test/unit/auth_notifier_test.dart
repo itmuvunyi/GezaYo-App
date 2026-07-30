@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gezayo_app/core/services/storage_service.dart';
 import 'package:gezayo_app/core/services/database_service.dart';
 import 'package:gezayo_app/core/services/backend_api_service.dart';
+import 'package:gezayo_app/core/services/firestore_service.dart';
 import 'package:gezayo_app/features/auth/data/auth_repository.dart';
 import 'package:gezayo_app/features/auth/presentation/auth_notifier.dart';
 
@@ -12,6 +13,7 @@ void main() {
   late StorageService storageService;
   late DatabaseService dbService;
   late BackendApiService apiService;
+  late FirestoreService firestoreService;
   late AuthRepository authRepo;
   late AuthNotifier authNotifier;
 
@@ -21,7 +23,8 @@ void main() {
     storageService = StorageService(prefs);
     dbService = DatabaseService(prefs);
     apiService = BackendApiService(dbService);
-    authRepo = AuthRepositoryImpl(storageService, apiService);
+    firestoreService = FakeFirestoreService(dbService);
+    authRepo = AuthRepositoryImpl(storageService, apiService, firestoreService);
     authNotifier = AuthNotifier(authRepo, storageService);
   });
 
@@ -39,9 +42,9 @@ void main() {
       expect(authNotifier.state.user?.role, 'customer');
     });
 
-    test('signUpWithPhone sets custom role and persists state', () async {
-      final result = await authNotifier.signUpWithPhone(
-          '+250 788 123 456', 'Eric', 'rider');
+    test('signUpWithEmail sets custom role and persists state', () async {
+      final result = await authNotifier.signUpWithEmail(
+          'eric@gezayo.rw', 'password123', 'Eric', 'rider');
       expect(result, true);
       expect(authNotifier.state.user?.role, 'rider');
       expect(storageService.getUserRole(), 'rider');

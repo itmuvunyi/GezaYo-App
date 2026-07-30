@@ -21,15 +21,15 @@ class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final notifier = ref.read(riderNotifierProvider.notifier);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Interactive Map Canvas
           const Positioned.fill(
             child: SimulatedMapWidget(
-              showRiderPins: true,
               showRoute: true,
             ),
           ),
@@ -118,10 +118,11 @@ class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
             right: 0,
             child: Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 16),
                 ],
               ),
@@ -141,17 +142,19 @@ class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Samuel K.',
-                                style: AppTypography.titleLarge()),
+                            Text('Customer',
+                                style: AppTypography.titleLarge(
+                                    color: theme.colorScheme.onSurface)),
                             Row(
                               children: [
                                 const Icon(Icons.star,
                                     color: Colors.amber, size: 14),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '4.9 • Order #8821',
+                                  '4.9',
                                   style: AppTypography.bodySmall(
-                                      color: AppColors.textSecondary),
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                                 ),
                               ],
                             ),
@@ -263,7 +266,7 @@ class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
                                   'Order marked as Picked Up! Navigating to dropoff...')),
                         );
                       } else {
-                        notifier.completeCurrentJob(4500);
+                        notifier.completeCurrentJob(2500);
                         context.go('/earnings');
                       }
                     },

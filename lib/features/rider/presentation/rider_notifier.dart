@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/firestore_service.dart';
 import '../domain/transaction_model.dart';
 import '../data/rider_repository.dart';
 
@@ -13,13 +14,17 @@ class RiderState {
 
   const RiderState({
     this.isOnline = true,
-    this.totalBalanceRwf = 42500.0,
-    this.earnedTodayRwf = 18200.0,
-    this.jobsDoneToday = 14,
+    this.totalBalanceRwf = 0.0,
+    this.earnedTodayRwf = 0.0,
+    this.jobsDoneToday = 0,
     this.activeJobId,
     this.transactions = const [],
     this.isLoading = false,
   });
+
+  // Convenience Aliases for UI & Tests
+  double get todayEarningsRwf => earnedTodayRwf;
+  int get jobsCompletedCount => jobsDoneToday;
 
   RiderState copyWith({
     bool? isOnline,
@@ -46,46 +51,27 @@ class RiderState {
 final riderNotifierProvider =
     StateNotifierProvider<RiderNotifier, RiderState>((ref) {
   final repo = ref.watch(riderRepositoryProvider);
-  return RiderNotifier(repo);
+  final firestore = ref.watch(firestoreServiceProvider);
+  return RiderNotifier(repo, firestore);
 });
 
 class RiderNotifier extends StateNotifier<RiderState> {
   final RiderRepository _repository;
+  final FirestoreService _firestoreService;
 
-  RiderNotifier(this._repository) : super(const RiderState()) {
+  RiderNotifier(this._repository, this._firestoreService)
+      : super(const RiderState()) {
     _loadTransactions();
   }
 
   Future<void> _loadTransactions() async {
     final txs = await _repository.fetchTransactions();
-    if (txs.isNotEmpty) {
-      state = state.copyWith(transactions: txs);
-    } else {
-      state = state.copyWith(
-        transactions: const [
-          TransactionModel(
-            id: 'tx-101',
-            title: 'Delivery #GZ-8821',
-            dateText: 'Today, 11:42 AM',
-            amountRwf: 4500,
-            type: TransactionType.jobEarning,
-            status: TransactionStatus.completed,
-          ),
-          TransactionModel(
-            id: 'tx-102',
-            title: 'Withdrawal to MTN MoMo',
-            dateText: 'Yesterday, 4:15 PM',
-            amountRwf: 10000,
-            type: TransactionType.withdrawal,
-            status: TransactionStatus.completed,
-          ),
-        ],
-      );
-    }
+    state = state.copyWith(transactions: txs);
   }
 
-  void toggleOnlineStatus(bool online) {
+  void toggleOnlineStatus(bool online, [String riderUid = 'rider-1']) {
     state = state.copyWith(isOnline: online);
+    _firestoreService.updateOnlineStatus(riderUid, online);
   }
 
   void acceptJob(String jobId, double fareRwf) {

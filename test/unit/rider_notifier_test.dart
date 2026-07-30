@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gezayo_app/core/services/database_service.dart';
 import 'package:gezayo_app/core/services/backend_api_service.dart';
+import 'package:gezayo_app/core/services/firestore_service.dart';
 import 'package:gezayo_app/features/rider/data/rider_repository.dart';
 import 'package:gezayo_app/features/rider/presentation/rider_notifier.dart';
 
@@ -9,6 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late RiderRepository repo;
+  late FirestoreService firestore;
   late RiderNotifier riderNotifier;
 
   setUp(() async {
@@ -16,8 +18,9 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final db = DatabaseService(prefs);
     final api = BackendApiService(db);
-    repo = RiderRepositoryImpl(api);
-    riderNotifier = RiderNotifier(repo);
+    firestore = FakeFirestoreService(db);
+    repo = RiderRepositoryImpl(api, firestore);
+    riderNotifier = RiderNotifier(repo, firestore);
   });
 
   group('RiderNotifier Tests', () {
@@ -45,6 +48,9 @@ void main() {
     });
 
     test('withdrawToMoMo deducts balance on valid amount', () async {
+      riderNotifier.acceptJob('JOB-101', 10000);
+      riderNotifier.completeCurrentJob(10000);
+
       final initialBalance = riderNotifier.state.totalBalanceRwf;
       final success = await riderNotifier.withdrawToMoMo(5000);
 

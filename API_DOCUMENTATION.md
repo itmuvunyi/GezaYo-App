@@ -14,7 +14,7 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
-## 🔐 1. Authentication Endpoints
+## 1. Authentication Endpoints
 
 ### `POST /api/v1/auth/login`
 Authenticates a user via Email and Password.
@@ -80,7 +80,7 @@ Registers or authenticates a user using Phone OTP verification.
 
 ---
 
-## 📦 2. Delivery Request Endpoints
+## 2. Delivery Request Endpoints
 
 ### `POST /api/v1/deliveries`
 Creates a new package delivery request.
@@ -147,7 +147,7 @@ Updates delivery status, assigned rider, tip amount, or user ratings.
 
 ---
 
-## 🏍️ 3. Rider & Financial Ledger Endpoints
+## 3. Rider & Financial Ledger Endpoints
 
 ### `GET /api/v1/riders/nearby`
 Fetches real-time available riders nearby in Kigali.

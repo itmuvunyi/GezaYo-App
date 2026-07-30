@@ -283,7 +283,7 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                               children: [
                                 Text('Total Earnings',
                                     style: AppTypography.headlineMedium()),
-                                Text('💳 PAID ONLINE',
+                                Text('PAID ONLINE',
                                     style: AppTypography.labelMedium(
                                         color: AppColors.statusSuccess)),
                               ],

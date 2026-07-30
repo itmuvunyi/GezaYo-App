@@ -22,7 +22,7 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
   bool _isDailyView = true;
 
   void _showWithdrawalModal(double currentBalance) {
-    final amountController = TextEditingController(text: '10000');
+    final amountController = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -54,6 +54,7 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Amount (RWF)',
+                  hintText: 'Enter amount to withdraw',
                   prefixText: 'RWF ',
                 ),
               ),
@@ -105,7 +106,7 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
       backgroundColor: AppColors.backgroundLight,
       appBar: CustomAppBar(
         title: 'GezaYo',
-        userName: 'Jean Bosco',
+        userName: 'Rider Dashboard',
         onNotificationTap: () {},
         onAvatarTap: () => context.push('/profile'),
       ),
@@ -288,16 +289,16 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                                 if (value.toInt() >= 0 &&
                                     value.toInt() < days.length) {
                                   final day = days[value.toInt()];
-                                  final isWed = day == 'Wed';
+                                  final isToday = day == 'Thu';
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 8),
                                     child: Text(
                                       day,
                                       style: TextStyle(
-                                        color: isWed
+                                        color: isToday
                                             ? AppColors.primary
                                             : AppColors.textMuted,
-                                        fontWeight: isWed
+                                        fontWeight: isToday
                                             ? FontWeight.bold
                                             : FontWeight.normal,
                                         fontSize: 12,
@@ -313,13 +314,13 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         gridData: const FlGridData(show: false),
                         borderData: FlBorderData(show: false),
                         barGroups: [
-                          _makeBarGroup(0, 10),
-                          _makeBarGroup(1, 14),
-                          _makeBarGroup(2, 18, isSelected: true), // Today Wed
-                          _makeBarGroup(3, 8),
-                          _makeBarGroup(4, 12),
-                          _makeBarGroup(5, 20),
-                          _makeBarGroup(6, 16),
+                          _makeBarGroup(0, 0),
+                          _makeBarGroup(1, 0),
+                          _makeBarGroup(2, 0),
+                          _makeBarGroup(3, 0, isSelected: true),
+                          _makeBarGroup(4, 0),
+                          _makeBarGroup(5, 0),
+                          _makeBarGroup(6, 0),
                         ],
                       ),
                     ),
@@ -335,7 +336,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         children: [
                           Text("Today's Earnings",
                               style: AppTypography.bodySmall()),
-                          Text('RWF 18,200',
+                          Text(
+                              'RWF ${riderState.earnedTodayRwf.toStringAsFixed(0)}',
                               style: AppTypography.headlineMedium(
                                   color: AppColors.primary)),
                         ],
@@ -345,7 +347,7 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         children: [
                           Text('Trips Completed',
                               style: AppTypography.bodySmall()),
-                          Text('14',
+                          Text('${riderState.jobsDoneToday}',
                               style: AppTypography.headlineMedium(
                                   color: AppColors.textPrimary)),
                         ],
@@ -376,7 +378,18 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
             const SizedBox(height: 12),
 
             // Transactions List
-            ...riderState.transactions.map((tx) => _TransactionTile(tx: tx)),
+            if (riderState.transactions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    'No transactions yet.',
+                    style: AppTypography.bodyMedium(color: AppColors.textMuted),
+                  ),
+                ),
+              )
+            else
+              ...riderState.transactions.map((tx) => _TransactionTile(tx: tx)),
 
             const SizedBox(height: 32),
           ],

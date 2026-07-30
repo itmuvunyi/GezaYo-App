@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../auth/presentation/auth_notifier.dart';
 
 class SecurityScreen extends ConsumerStatefulWidget {
   const SecurityScreen({super.key});
@@ -14,11 +15,10 @@ class SecurityScreen extends ConsumerStatefulWidget {
 }
 
 class _SecurityScreenState extends ConsumerState<SecurityScreen> {
-  bool _twoFactorEnabled = false;
-  bool _biometricEnabled = true;
   bool _rememberLogin = true;
 
   void _showChangePasswordDialog() {
+    final theme = Theme.of(context);
     final currentPassController = TextEditingController();
     final newPassController = TextEditingController();
     final confirmPassController = TextEditingController();
@@ -27,7 +27,12 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Change Password', style: AppTypography.headlineMedium()),
+        title: Text(
+          'Change Password',
+          style: AppTypography.headlineMedium(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -53,17 +58,26 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             ),
           ],
         ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
-          TextButton(
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(90, 44),
+            ),
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel',
-                style: AppTypography.titleMedium(color: AppColors.textMuted)),
+            child: Text(
+              'Cancel',
+              style: AppTypography.titleMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+              minimumSize: const Size(100, 44),
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
             ),
             onPressed: () {
               if (newPassController.text == confirmPassController.text &&
@@ -79,7 +93,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 );
               }
             },
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
+            child: const Text('Update',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -87,6 +102,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   }
 
   void _showDeleteAccountDialog() {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -95,29 +111,47 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
           children: [
             const Icon(Icons.warning, color: AppColors.statusError),
             const SizedBox(width: 8),
-            Text('Delete Account',
-                style:
-                    AppTypography.headlineMedium(color: AppColors.statusError)),
+            Text(
+              'Delete Account',
+              style: AppTypography.headlineMedium(color: AppColors.statusError),
+            ),
           ],
         ),
         content: Text(
-          'Are you sure you want to permanently delete your GezaYo account? This action cannot be undone.',
-          style: AppTypography.bodyMedium(),
+          'Are you sure you want to permanently delete your GezaYo account? This action is non-reversible and all your data will be permanently erased.',
+          style: AppTypography.bodyMedium(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
-          TextButton(
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(90, 44),
+            ),
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: AppTypography.titleMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.statusError),
-            onPressed: () {
+              minimumSize: const Size(150, 44),
+              backgroundColor: AppColors.statusError,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
               Navigator.of(ctx).pop();
-              context.go('/auth');
+              await ref.read(authNotifierProvider.notifier).logout();
+              if (context.mounted) context.go('/auth');
             },
             child: const Text('Delete Permanently',
-                style: TextStyle(color: Colors.white)),
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -126,15 +160,20 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title:
-            Text('Security & Privacy', style: AppTypography.headlineMedium()),
+        title: Text(
+          'Security & Privacy',
+          style: AppTypography.headlineMedium(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -150,20 +189,27 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
 
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.lock_outline,
-                        color: AppColors.primary),
-                    title: Text('Change Password',
-                        style: AppTypography.titleMedium()),
-                    subtitle: Text('Update your account password',
-                        style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary)),
+                    leading: Icon(Icons.lock_outline,
+                        color: theme.colorScheme.primary),
+                    title: Text(
+                      'Change Password',
+                      style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Update your account password',
+                      style: AppTypography.bodySmall(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     trailing: const Icon(Icons.chevron_right,
                         color: AppColors.textMuted),
                     onTap: _showChangePasswordDialog,
@@ -171,39 +217,20 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                   const Divider(height: 1),
                   SwitchListTile(
                     activeTrackColor: AppColors.primaryLight,
-                    secondary: const Icon(Icons.verified_user_outlined,
-                        color: AppColors.primary),
-                    title: Text('Two-Factor Authentication (2FA)',
-                        style: AppTypography.titleMedium()),
-                    subtitle: Text('Require SMS code on unknown logins',
-                        style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary)),
-                    value: _twoFactorEnabled,
-                    onChanged: (val) => setState(() => _twoFactorEnabled = val),
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    activeTrackColor: AppColors.primaryLight,
-                    secondary:
-                        const Icon(Icons.fingerprint, color: AppColors.primary),
-                    title: Text('Biometric / Fingerprint Lock',
-                        style: AppTypography.titleMedium()),
-                    subtitle: Text('Unlock app using device biometrics',
-                        style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary)),
-                    value: _biometricEnabled,
-                    onChanged: (val) => setState(() => _biometricEnabled = val),
-                  ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    activeTrackColor: AppColors.primaryLight,
-                    secondary:
-                        const Icon(Icons.remember_me, color: AppColors.primary),
-                    title: Text('Remember Login State',
-                        style: AppTypography.titleMedium()),
-                    subtitle: Text('Stay signed in automatically on startup',
-                        style: AppTypography.bodySmall(
-                            color: AppColors.textSecondary)),
+                    secondary: Icon(Icons.remember_me,
+                        color: theme.colorScheme.primary),
+                    title: Text(
+                      'Remember Login State',
+                      style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Stay signed in automatically on startup',
+                      style: AppTypography.bodySmall(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     value: _rememberLogin,
                     onChanged: (val) => setState(() => _rememberLogin = val),
                   ),
@@ -223,9 +250,9 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Row(
                 children: [
@@ -236,11 +263,18 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Kigali Mobile Device (This Phone)',
-                            style: AppTypography.titleMedium()),
-                        Text('Active Now • Android App v1.0.0',
-                            style: AppTypography.bodySmall(
-                                color: AppColors.textMuted)),
+                        Text(
+                          'Kigali Mobile Device (This Phone)',
+                          style: AppTypography.titleMedium(
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'Active Now • Android App v1.0.0',
+                          style: AppTypography.bodySmall(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),

@@ -15,15 +15,18 @@ class LiveTrackingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final deliveryState = ref.watch(deliveryNotifierProvider);
     final delivery = deliveryState.activeDelivery;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('Track Order', style: AppTypography.headlineMedium()),
+        title: Text('Track Order',
+            style: AppTypography.headlineMedium(
+                color: theme.colorScheme.onSurface)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -34,10 +37,9 @@ class LiveTrackingScreen extends ConsumerWidget {
       ),
       body: Stack(
         children: [
-          // 3D Styled Map View
+          // Map View
           const Positioned.fill(
             child: SimulatedMapWidget(
-              showRiderPins: true,
               showRoute: true,
             ),
           ),
@@ -50,7 +52,7 @@ class LiveTrackingScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: const [
                   BoxShadow(
@@ -77,12 +79,12 @@ class LiveTrackingScreen extends ConsumerWidget {
                               Text(
                                 '${delivery?.estimatedArrivalMins ?? 12}',
                                 style: AppTypography.displayMedium(
-                                    color: AppColors.textPrimary),
+                                    color: theme.colorScheme.onSurface),
                               ),
                               const SizedBox(width: 4),
                               Text('mins',
                                   style: AppTypography.titleLarge(
-                                      color: AppColors.textPrimary)),
+                                      color: theme.colorScheme.onSurface)),
                             ],
                           ),
                         ],
@@ -116,7 +118,7 @@ class LiveTrackingScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 12),
@@ -153,8 +155,9 @@ class LiveTrackingScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              delivery?.assignedRiderName ?? 'Jean Bosco K.',
-                              style: AppTypography.titleLarge(),
+                              delivery?.assignedRiderName ?? 'Rider Accepted',
+                              style: AppTypography.titleLarge(
+                                  color: theme.colorScheme.onSurface),
                             ),
                             const SizedBox(height: 4),
                             Row(
@@ -163,7 +166,7 @@ class LiveTrackingScreen extends ConsumerWidget {
                                     color: Colors.amber, size: 16),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '4.9 (120+ deliveries)',
+                                  '${delivery?.assignedRiderRating ?? 5.0}',
                                   style: AppTypography.bodySmall(
                                       color: AppColors.accentOrangeDark),
                                 ),
@@ -210,7 +213,7 @@ class LiveTrackingScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => context.push('/order-completion'),
-                      child: Text('Simulate Order Arrival',
+                      child: Text('Complete Order',
                           style: AppTypography.labelLarge(
                               color: AppColors.primary)),
                     ),
@@ -276,7 +279,7 @@ class _StepItem extends StatelessWidget {
           title,
           style: AppTypography.bodySmall(
             color: isDone || isActive
-                ? AppColors.textPrimary
+                ? AppColors.primary
                 : AppColors.textMuted,
           ),
         ),

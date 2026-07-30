@@ -5,20 +5,155 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_bottom_nav.dart';
-import '../../../core/widgets/rating_stars.dart';
+import '../../../core/services/storage_service.dart';
 import '../../auth/presentation/auth_notifier.dart';
+
+final themeModeNotifierProvider =
+    StateNotifierProvider<ThemeModeNotifier, String>((ref) {
+  final storage = ref.watch(storageServiceProvider);
+  return ThemeModeNotifier(storage);
+});
+
+class ThemeModeNotifier extends StateNotifier<String> {
+  final StorageService _storage;
+
+  ThemeModeNotifier(this._storage) : super(_storage.getThemeMode());
+
+  void setTheme(String mode) {
+    _storage.setThemeMode(mode);
+    state = mode;
+  }
+}
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  void _showLogoutConfirmation(BuildContext context, AuthNotifier notifier) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.logout, color: AppColors.statusError),
+            const SizedBox(width: 8),
+            Text(
+              'Confirm Logout',
+              style: AppTypography.headlineMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to log out of your GezaYo account?',
+          style: AppTypography.bodyMedium(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        actionsPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(100, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'Cancel',
+              style: AppTypography.titleMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(110, 44),
+              backgroundColor: AppColors.statusError,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await notifier.logout();
+              if (context.mounted) context.go('/auth');
+            },
+            child: Text(
+              'Logout',
+              style: AppTypography.titleMedium(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showThemeDialog(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final currentTheme = ref.read(themeModeNotifierProvider);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Select Theme Mode',
+          style: AppTypography.headlineMedium(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        children: [
+          RadioListTile<String>(
+            activeColor: theme.colorScheme.primary,
+            title: Text(
+              'Light Mode',
+              style: AppTypography.titleMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            value: 'light',
+            groupValue: currentTheme,
+            onChanged: (val) {
+              if (val != null) {
+                ref.read(themeModeNotifierProvider.notifier).setTheme(val);
+                Navigator.of(ctx).pop();
+              }
+            },
+          ),
+          RadioListTile<String>(
+            activeColor: theme.colorScheme.primary,
+            title: Text(
+              'Dark Mode',
+              style: AppTypography.titleMedium(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            value: 'dark',
+            groupValue: currentTheme,
+            onChanged: (val) {
+              if (val != null) {
+                ref.read(themeModeNotifierProvider.notifier).setTheme(val);
+                Navigator.of(ctx).pop();
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
     final notifier = ref.read(authNotifierProvider.notifier);
+    final themeMode = ref.watch(themeModeNotifierProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
       appBar: CustomAppBar(
         title: 'GezaYo',
         userName: user?.fullName ?? 'User',
@@ -33,25 +168,26 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 46,
-                    backgroundColor: AppColors.primaryMint,
+                    backgroundColor: theme.colorScheme.primaryContainer,
                     child: Text(
                       user?.fullName.isNotEmpty == true
-                          ? user!.fullName[0]
-                          : 'J',
-                      style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary),
+                          ? user!.fullName[0].toUpperCase()
+                          : 'U',
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
-                  const Positioned(
+                  Positioned(
                     bottom: 0,
                     right: 0,
                     child: CircleAvatar(
                       radius: 14,
-                      backgroundColor: Colors.white,
+                      backgroundColor: theme.cardColor,
                       child: Icon(Icons.check_circle,
-                          color: AppColors.primary, size: 24),
+                          color: theme.colorScheme.primary, size: 24),
                     ),
                   ),
                 ],
@@ -61,54 +197,15 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 12),
 
             Text(
-              user?.fullName ?? 'Jean Bosco Habimana',
-              style: AppTypography.headlineMedium(),
+              user?.fullName ?? 'Account User',
+              style: AppTypography.headlineMedium(
+                  color: theme.colorScheme.onSurface),
             ),
             const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '4.9 (124 reviews)',
-                  style:
-                      AppTypography.titleMedium(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Recent Review Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.parcelBg,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Recent Review', style: AppTypography.titleMedium()),
-                      const RatingStars(rating: 5, iconSize: 16),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '"Always on time and handles the deliveries with great care. Highly recommended!"',
-                    style:
-                        AppTypography.bodyMedium(color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 6),
-                  Text('— Sarah K.',
-                      style:
-                          AppTypography.bodySmall(color: AppColors.textMuted)),
-                ],
-              ),
+            Text(
+              user?.email ?? '',
+              style: AppTypography.bodySmall(
+                  color: theme.colorScheme.onSurfaceVariant),
             ),
 
             const SizedBox(height: 24),
@@ -126,54 +223,53 @@ class ProfileScreen extends ConsumerWidget {
 
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.colorScheme.outline),
               ),
               child: Column(
                 children: [
-                  // Role Switcher Option
+                  // Theme Mode Setting
                   ListTile(
-                    leading:
-                        const Icon(Icons.swap_horiz, color: AppColors.primary),
-                    title:
-                        Text('Active Mode', style: AppTypography.titleMedium()),
-                    trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryMint,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        user?.isRider == true ? 'Rider Mode' : 'Customer Mode',
-                        style:
-                            AppTypography.labelMedium(color: AppColors.primary),
-                      ),
+                    leading: Icon(Icons.palette_outlined,
+                        color: theme.colorScheme.primary),
+                    title: Text(
+                      'Theme Mode',
+                      style: AppTypography.titleMedium(
+                          color: theme.colorScheme.onSurface),
                     ),
-                    onTap: () {
-                      final newRole =
-                          user?.isRider == true ? 'customer' : 'rider';
-                      notifier.switchRole(newRole);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Switched to ${newRole.toUpperCase()} mode!')),
-                      );
-                    },
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          themeMode == 'dark' ? 'Dark' : 'Light',
+                          style: AppTypography.bodyMedium(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                        const Icon(Icons.chevron_right,
+                            color: AppColors.textMuted),
+                      ],
+                    ),
+                    onTap: () => _showThemeDialog(context, ref),
                   ),
                   const Divider(height: 1),
 
                   ListTile(
                     leading:
-                        const Icon(Icons.language, color: AppColors.primary),
-                    title: Text('Language', style: AppTypography.titleMedium()),
+                        Icon(Icons.language, color: theme.colorScheme.primary),
+                    title: Text(
+                      'Language',
+                      style: AppTypography.titleMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(authState.selectedLanguage,
-                            style: AppTypography.bodyMedium(
-                                color: AppColors.textSecondary)),
+                        Text(
+                          authState.selectedLanguage,
+                          style: AppTypography.bodyMedium(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
                         const Icon(Icons.chevron_right,
                             color: AppColors.textMuted),
                       ],
@@ -183,38 +279,27 @@ class ProfileScreen extends ConsumerWidget {
                   const Divider(height: 1),
 
                   ListTile(
-                    leading: const Icon(Icons.notifications_none,
-                        color: AppColors.primary),
-                    title: Text('Notifications',
-                        style: AppTypography.titleMedium()),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.statusSuccess,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Text('3',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Icons.chevron_right,
-                            color: AppColors.textMuted),
-                      ],
+                    leading: Icon(Icons.notifications_none,
+                        color: theme.colorScheme.primary),
+                    title: Text(
+                      'Notifications',
+                      style: AppTypography.titleMedium(
+                          color: theme.colorScheme.onSurface),
                     ),
+                    trailing: const Icon(Icons.chevron_right,
+                        color: AppColors.textMuted),
                     onTap: () => context.push('/settings/notifications'),
                   ),
                   const Divider(height: 1),
 
                   ListTile(
                     leading:
-                        const Icon(Icons.security, color: AppColors.primary),
-                    title: Text('Security', style: AppTypography.titleMedium()),
+                        Icon(Icons.security, color: theme.colorScheme.primary),
+                    title: Text(
+                      'Security',
+                      style: AppTypography.titleMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
                     trailing: const Icon(Icons.chevron_right,
                         color: AppColors.textMuted),
                     onTap: () => context.push('/settings/security'),
@@ -222,10 +307,13 @@ class ProfileScreen extends ConsumerWidget {
                   const Divider(height: 1),
 
                   ListTile(
-                    leading: const Icon(Icons.help_outline,
-                        color: AppColors.primary),
-                    title:
-                        Text('Help Center', style: AppTypography.titleMedium()),
+                    leading: Icon(Icons.help_outline,
+                        color: theme.colorScheme.primary),
+                    title: Text(
+                      'Help Center',
+                      style: AppTypography.titleMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
                     trailing: const Icon(Icons.chevron_right,
                         color: AppColors.textMuted),
                     onTap: () => context.push('/help'),
@@ -249,10 +337,7 @@ class ProfileScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () async {
-                  await notifier.logout();
-                  if (context.mounted) context.go('/auth');
-                },
+                onPressed: () => _showLogoutConfirmation(context, notifier),
                 icon: const Icon(Icons.logout, color: AppColors.statusError),
                 label: Text(
                   'Logout',

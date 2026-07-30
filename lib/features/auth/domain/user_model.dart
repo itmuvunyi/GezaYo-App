@@ -11,6 +11,8 @@ class UserModel extends Equatable {
   final double rating;
   final int totalDeliveries;
   final bool isOnline;
+  final double latitude;
+  final double longitude;
 
   const UserModel({
     required this.uid,
@@ -19,9 +21,11 @@ class UserModel extends Equatable {
     required this.phoneNumber,
     required this.role,
     this.avatarUrl = '',
-    this.rating = 4.9,
-    this.totalDeliveries = 124,
-    this.isOnline = true,
+    this.rating = 0.0,
+    this.totalDeliveries = 0,
+    this.isOnline = false,
+    this.latitude = 0.0,
+    this.longitude = 0.0,
   });
 
   bool get isRider => role == 'rider';
@@ -37,6 +41,8 @@ class UserModel extends Equatable {
     double? rating,
     int? totalDeliveries,
     bool? isOnline,
+    double? latitude,
+    double? longitude,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -48,6 +54,8 @@ class UserModel extends Equatable {
       rating: rating ?? this.rating,
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
       isOnline: isOnline ?? this.isOnline,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 
@@ -62,6 +70,8 @@ class UserModel extends Equatable {
       'rating': rating,
       'totalDeliveries': totalDeliveries,
       'isOnline': isOnline,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -73,9 +83,11 @@ class UserModel extends Equatable {
       phoneNumber: map['phoneNumber'] ?? '',
       role: map['role'] ?? 'customer',
       avatarUrl: map['avatarUrl'] ?? '',
-      rating: (map['rating'] ?? 4.9).toDouble(),
+      rating: (map['rating'] ?? 0.0).toDouble(),
       totalDeliveries: map['totalDeliveries'] ?? 0,
-      isOnline: map['isOnline'] ?? true,
+      isOnline: map['isOnline'] ?? false,
+      latitude: (map['latitude'] ?? 0.0).toDouble(),
+      longitude: (map['longitude'] ?? 0.0).toDouble(),
     );
   }
 
@@ -95,5 +107,7 @@ class UserModel extends Equatable {
         rating,
         totalDeliveries,
         isOnline,
+        latitude,
+        longitude,
       ];
 }

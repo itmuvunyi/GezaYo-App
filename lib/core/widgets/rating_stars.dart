@@ -3,32 +3,33 @@ import '../theme/app_colors.dart';
 
 class RatingStars extends StatelessWidget {
   final int rating;
-  final ValueChanged<int>? onRatingChanged;
+  final int maxRating;
   final double iconSize;
+  final ValueChanged<int>? onRatingChanged;
 
   const RatingStars({
     super.key,
     required this.rating,
-    this.onRatingChanged,
+    this.maxRating = 5,
     this.iconSize = 32,
+    this.onRatingChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(5, (index) {
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(maxRating, (index) {
         final starNumber = index + 1;
         final isFilled = starNumber <= rating;
+
         return GestureDetector(
-          onTap: onRatingChanged != null
-              ? () => onRatingChanged!(starNumber)
-              : null,
+          onTap: onRatingChanged != null ? () => onRatingChanged!(starNumber) : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Icon(
               isFilled ? Icons.star : Icons.star_border,
-              color: AppColors.accentOrange,
+              color: isFilled ? Colors.amber : AppColors.cardBorder,
               size: iconSize,
             ),
           ),

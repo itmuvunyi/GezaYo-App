@@ -30,6 +30,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AppBar(
       automaticallyImplyLeading: false,
       titleSpacing: 16,
@@ -37,7 +39,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           if (showBackButton) ...[
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+              icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
               onPressed: () => Navigator.of(context).maybePop(),
             ),
             const SizedBox(width: 4),
@@ -46,10 +48,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               onTap: onAvatarTap,
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.primaryMint,
+                backgroundColor: theme.colorScheme.primaryContainer,
                 child: Text(
                   userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                  style: AppTypography.titleLarge(color: AppColors.primary),
+                  style: AppTypography.titleLarge(
+                      color: theme.colorScheme.primary),
                 ),
               ),
             ),
@@ -57,7 +60,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ],
           Text(
             title,
-            style: AppTypography.headlineMedium(color: AppColors.primary),
+            style:
+                AppTypography.headlineMedium(color: theme.colorScheme.primary),
           ),
           const Spacer(),
           if (trailing != null) trailing!,
@@ -65,8 +69,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications_none_outlined,
-                      color: AppColors.textPrimary, size: 26),
+                  icon: Icon(Icons.notifications_none_outlined,
+                      color: theme.colorScheme.onSurface, size: 26),
                   onPressed: onNotificationTap ??
                       () => context.push('/settings/notifications'),
                 ),

@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/backend_api_service.dart';
+import '../../../core/services/firestore_service.dart';
 import '../domain/delivery_model.dart';
 import '../domain/rider_model.dart';
 
 final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
   final api = ref.watch(backendApiServiceProvider);
-  return DeliveryRepositoryImpl(api);
+  final firestore = ref.watch(firestoreServiceProvider);
+  return DeliveryRepositoryImpl(api, firestore);
 });
 
 abstract class DeliveryRepository {
@@ -16,6 +18,7 @@ abstract class DeliveryRepository {
     required String weightClass,
     required String instructions,
     required double estimatedFare,
+    String customerUid = '',
   });
 
   Future<DeliveryModel?> getActiveDelivery();
@@ -28,8 +31,9 @@ abstract class DeliveryRepository {
 
 class DeliveryRepositoryImpl implements DeliveryRepository {
   final BackendApiService _apiService;
+  final FirestoreService _firestoreService;
 
-  DeliveryRepositoryImpl(this._apiService);
+  DeliveryRepositoryImpl(this._apiService, this._firestoreService);
 
   @override
   Future<DeliveryModel?> createDeliveryRequest({
@@ -39,6 +43,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     required String weightClass,
     required String instructions,
     required double estimatedFare,
+    String customerUid = '',
   }) async {
     final payload = {
       'pickupAddress': pickupAddress,
@@ -47,18 +52,28 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
       'weightClass': weightClass,
       'instructions': instructions,
       'estimatedFareRwf': estimatedFare,
+      'customerUid': customerUid,
       'status': 'searching',
+      'createdAt': DateTime.now().toIso8601String(),
     };
 
     final response = await _apiService.createDeliveryRequest(payload);
     if (response.isSuccess && response.data != null) {
-      return DeliveryModel.fromMap(response.data!);
+      final model = DeliveryModel.fromMap(response.data!);
+      await _firestoreService.createDelivery(model);
+      return model;
     }
     return null;
   }
 
   @override
   Future<DeliveryModel?> getActiveDelivery() async {
+    final firestoreActive =
+        await _firestoreService.getActiveDelivery('current-user');
+    if (firestoreActive != null) {
+      return firestoreActive;
+    }
+
     final response = await _apiService.getActiveDelivery();
     if (response.isSuccess && response.data != null) {
       return DeliveryModel.fromMap(response.data!);
@@ -68,6 +83,11 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<List<RiderModel>> fetchNearbyRiders() async {
+    final firestoreRiders = await _firestoreService.getNearbyRiders();
+    if (firestoreRiders.isNotEmpty) {
+      return firestoreRiders;
+    }
+
     final response = await _apiService.getNearbyRiders();
     if (response.isSuccess && response.data != null) {
       return response.data!.map((m) => RiderModel.fromMap(m)).toList();
@@ -83,6 +103,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
       'assignedRiderName': rider.name,
       'assignedRiderRating': rider.rating,
     };
+    await _firestoreService.updateDelivery(current.id, updates);
     final response =
         await _apiService.updateDeliveryStatus(current.id, updates);
     if (response.isSuccess && response.data != null) {
@@ -97,22 +118,21 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<DeliveryModel?> addTip(DeliveryModel current, double tipRwf) async {
-    final updates = {
-      'tipAmount': current.tipAmount + tipRwf,
-    };
+    final newTip = current.tipAmount + tipRwf;
+    final updates = {'tipAmount': newTip};
+    await _firestoreService.updateDelivery(current.id, updates);
     final response =
         await _apiService.updateDeliveryStatus(current.id, updates);
     if (response.isSuccess && response.data != null) {
       return DeliveryModel.fromMap(response.data!);
     }
-    return current.copyWith(tipAmount: current.tipAmount + tipRwf);
+    return current.copyWith(tipAmount: newTip);
   }
 
   @override
   Future<DeliveryModel?> setRating(DeliveryModel current, int stars) async {
-    final updates = {
-      'ratingGiven': stars,
-    };
+    final updates = {'ratingGiven': stars};
+    await _firestoreService.updateDelivery(current.id, updates);
     final response =
         await _apiService.updateDeliveryStatus(current.id, updates);
     if (response.isSuccess && response.data != null) {
@@ -123,6 +143,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<void> clearActiveDelivery(String deliveryId) async {
+    await _firestoreService.updateDelivery(deliveryId, {'status': 'delivered'});
     await _apiService.updateDeliveryStatus(deliveryId, {'status': 'delivered'});
   }
 }

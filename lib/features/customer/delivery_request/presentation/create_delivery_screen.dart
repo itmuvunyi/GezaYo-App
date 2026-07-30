@@ -6,6 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
+import '../../../auth/presentation/auth_notifier.dart';
 import '../../presentation/delivery_notifier.dart';
 
 class CreateDeliveryScreen extends ConsumerStatefulWidget {
@@ -19,15 +20,13 @@ class CreateDeliveryScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
-  final _pickupController =
-      TextEditingController(text: '24 KN 59 St, Kigali (Your Location)');
-  final _dropoffController =
-      TextEditingController(text: 'Mamba Club, Kimihurura');
+  final _pickupController = TextEditingController();
+  final _dropoffController = TextEditingController();
   final _instructionsController = TextEditingController();
+  final _fareController = TextEditingController(text: '2500');
 
   late String _selectedPackageType;
   String _selectedWeightClass = 'Light (<5kg)';
-  final double _estimatedFare = 2500;
 
   @override
   void initState() {
@@ -35,15 +34,38 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
     _selectedPackageType = widget.initialPackageType ?? 'Parcel';
   }
 
+  @override
+  void dispose() {
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    _instructionsController.dispose();
+    _fareController.dispose();
+    super.dispose();
+  }
+
   void _submitRequest() {
+    final authState = ref.read(authNotifierProvider);
+    final customerUid = authState.user?.uid ?? '';
+    final offerFare = double.tryParse(_fareController.text.trim()) ?? 2500.0;
+
+    if (_pickupController.text.trim().isEmpty ||
+        _dropoffController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter pickup and drop-off addresses.')),
+      );
+      return;
+    }
+
     final notifier = ref.read(deliveryNotifierProvider.notifier);
     notifier.createDeliveryRequest(
-      pickupAddress: _pickupController.text,
-      dropoffAddress: _dropoffController.text,
+      pickupAddress: _pickupController.text.trim(),
+      dropoffAddress: _dropoffController.text.trim(),
       packageType: _selectedPackageType,
       weightClass: _selectedWeightClass,
-      instructions: _instructionsController.text,
-      estimatedFare: _estimatedFare,
+      instructions: _instructionsController.text.trim(),
+      estimatedFare: offerFare,
+      customerUid: customerUid,
     );
 
     context.push('/rider-matching');
@@ -51,21 +73,25 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('New Delivery', style: AppTypography.headlineMedium()),
+        title: Text('New Delivery',
+            style: AppTypography.headlineMedium(
+                color: theme.colorScheme.onSurface)),
         actions: const [
           Padding(
             padding: EdgeInsets.only(right: 16),
             child: CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primaryMint,
-              child: Text('J', style: TextStyle(color: AppColors.primary)),
+              child: Icon(Icons.person, size: 20, color: AppColors.primary),
             ),
           ),
         ],
@@ -84,7 +110,6 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: const SimulatedMapWidget(
-                        showRiderPins: false,
                         showRoute: true,
                       ),
                     ),
@@ -96,9 +121,10 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.cardBorder),
+                      border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       children: [
@@ -111,7 +137,8 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                             Expanded(
                               child: AppTextField(
                                 label: 'Pickup Location',
-                                hintText: 'Where to pick up?',
+                                hintText:
+                                    'Enter pickup address (e.g. 24 KN 59 St)',
                                 controller: _pickupController,
                                 suffixIcon: const Icon(Icons.my_location,
                                     color: AppColors.primary),
@@ -143,7 +170,7 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                             Expanded(
                               child: AppTextField(
                                 label: 'Drop-off Location',
-                                hintText: 'Where is it going?',
+                                hintText: 'Enter drop-off destination',
                                 controller: _dropoffController,
                               ),
                             ),
@@ -160,7 +187,8 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Package Type',
-                          style: AppTypography.headlineMedium()),
+                          style: AppTypography.headlineMedium(
+                              color: theme.colorScheme.onSurface)),
                       Text('Required',
                           style: AppTypography.labelMedium(
                               color: AppColors.statusSuccess)),
@@ -212,7 +240,9 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                   const SizedBox(height: 24),
 
                   // Weight Class Section
-                  Text('Weight Class', style: AppTypography.headlineMedium()),
+                  Text('Weight Class',
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface)),
                   const SizedBox(height: 12),
 
                   SingleChildScrollView(
@@ -245,9 +275,35 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
 
                   const SizedBox(height: 24),
 
+                  // Customer Offered Price Input
+                  Text('Offered Price (RWF)',
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface)),
+                  const SizedBox(height: 4),
+                  Text('Enter the fare amount you wish to offer the rider',
+                      style: AppTypography.bodySmall(
+                          color: theme.colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    hintText: 'E.g. 2500',
+                    controller: _fareController,
+                    keyboardType: TextInputType.number,
+                    suffixIcon: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('RWF',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary)),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+
+                  const SizedBox(height: 24),
+
                   // Delivery Instructions
                   Text('Delivery Instructions (Optional)',
-                      style: AppTypography.headlineMedium()),
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface)),
                   const SizedBox(height: 12),
                   AppTextField(
                     hintText: 'E.g. Ring doorbell at gate, fragile item...',
@@ -262,9 +318,11 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
           // Bottom Fare Summary & Request CTA Bar
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: AppColors.surfaceLight,
-              border: Border(top: BorderSide(color: AppColors.cardBorder)),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              border: Border(
+                  top: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.3))),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -275,12 +333,14 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Estimated Total',
+                        Text('Your Offered Price',
                             style: AppTypography.bodySmall(
-                                color: AppColors.textSecondary)),
-                        Text('RWF ${_estimatedFare.toStringAsFixed(0)}',
-                            style: AppTypography.headlineLarge(
-                                color: AppColors.textPrimary)),
+                                color: theme.colorScheme.onSurfaceVariant)),
+                        Text(
+                          'RWF ${_fareController.text.trim().isEmpty ? '0' : _fareController.text.trim()}',
+                          style: AppTypography.headlineLarge(
+                              color: theme.colorScheme.onSurface),
+                        ),
                       ],
                     ),
                     Row(
@@ -324,14 +384,18 @@ class _PackageOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primarySubtle : AppColors.surfaceLight,
+          color: isSelected ? AppColors.primarySubtle : theme.cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
+            color: isSelected
+                ? AppColors.primary
+                : theme.dividerColor.withValues(alpha: 0.3),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -340,13 +404,16 @@ class _PackageOptionCard extends StatelessWidget {
           children: [
             Icon(icon,
                 size: 28,
-                color:
-                    isSelected ? AppColors.primary : AppColors.textSecondary),
+                color: isSelected
+                    ? AppColors.primary
+                    : theme.colorScheme.onSurfaceVariant),
             const SizedBox(height: 6),
             Text(
               title,
               style: AppTypography.titleMedium(
-                color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                color: isSelected
+                    ? AppColors.primary
+                    : theme.colorScheme.onSurface,
               ),
             ),
           ],
@@ -369,21 +436,25 @@ class _WeightPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+          color: isSelected ? AppColors.primary : theme.cardColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.cardBorder,
+            color: isSelected
+                ? AppColors.primary
+                : theme.dividerColor.withValues(alpha: 0.3),
           ),
         ),
         child: Text(
           label,
           style: AppTypography.titleMedium(
-            color: isSelected ? Colors.white : AppColors.textPrimary,
+            color: isSelected ? Colors.white : theme.colorScheme.onSurface,
           ),
         ),
       ),

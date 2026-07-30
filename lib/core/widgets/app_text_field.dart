@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
 class AppTextField extends StatelessWidget {
@@ -11,6 +10,7 @@ class AppTextField extends StatelessWidget {
   final bool obscureText;
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
+  final String? errorText;
   final String? prefixText;
   final int maxLines;
   final ValueChanged<String>? onChanged;
@@ -25,6 +25,7 @@ class AppTextField extends StatelessWidget {
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
     this.validator,
+    this.errorText,
     this.prefixText,
     this.maxLines = 1,
     this.onChanged,
@@ -32,13 +33,17 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label != null) ...[
           Text(
             label!,
-            style: AppTypography.titleMedium(color: AppColors.textPrimary),
+            style: AppTypography.titleMedium(
+              color: theme.colorScheme.onSurface,
+            ),
           ),
           const SizedBox(height: 6),
         ],
@@ -49,15 +54,19 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           maxLines: maxLines,
           onChanged: onChanged,
-          style: AppTypography.bodyLarge(color: AppColors.textPrimary),
+          style: AppTypography.bodyLarge(
+            color: theme.colorScheme.onSurface,
+          ),
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             prefixText: prefixText != null ? '$prefixText ' : null,
-            prefixStyle:
-                AppTypography.titleMedium(color: AppColors.textPrimary),
-            fillColor: AppColors.surfaceLight,
+            prefixStyle: AppTypography.titleMedium(
+              color: theme.colorScheme.onSurface,
+            ),
+            errorText: errorText,
+            fillColor: theme.cardColor,
             filled: true,
           ),
         ),

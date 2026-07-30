@@ -2,14 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gezayo_app/core/services/database_service.dart';
 import 'package:gezayo_app/core/services/backend_api_service.dart';
+import 'package:gezayo_app/core/services/firestore_service.dart';
 import 'package:gezayo_app/features/customer/data/delivery_repository.dart';
 import 'package:gezayo_app/features/customer/domain/delivery_model.dart';
+import 'package:gezayo_app/features/customer/domain/rider_model.dart';
 import 'package:gezayo_app/features/customer/presentation/delivery_notifier.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late DeliveryRepository repo;
+  late FirestoreService firestore;
   late DeliveryNotifier deliveryNotifier;
 
   setUp(() async {
@@ -17,8 +20,9 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final db = DatabaseService(prefs);
     final api = BackendApiService(db);
-    repo = DeliveryRepositoryImpl(api);
-    deliveryNotifier = DeliveryNotifier(repo);
+    firestore = FakeFirestoreService(db);
+    repo = DeliveryRepositoryImpl(api, firestore);
+    deliveryNotifier = DeliveryNotifier(repo, firestore);
   });
 
   group('DeliveryNotifier Tests', () {
@@ -30,6 +34,7 @@ void main() {
         weightClass: 'Light (<5kg)',
         instructions: 'Call on arrival',
         estimatedFare: 3000,
+        customerUid: 'cust-123',
       );
 
       final active = deliveryNotifier.state.activeDelivery;
@@ -47,14 +52,22 @@ void main() {
         weightClass: 'Light (<5kg)',
         instructions: '',
         estimatedFare: 2500,
+        customerUid: 'cust-123',
       );
 
-      final riders = await repo.fetchNearbyRiders();
-      final rider = riders.first;
-      await deliveryNotifier.selectRider(rider);
+      const testRider = RiderModel(
+        id: 'r1',
+        name: 'Jean Bosco K.',
+        rating: 4.9,
+        completedJobs: 120,
+        vehicleType: 'EV Motor (Eco)',
+        etaText: '3 min',
+      );
 
-      expect(
-          deliveryNotifier.state.activeDelivery?.assignedRiderName, rider.name);
+      await deliveryNotifier.selectRider(testRider);
+
+      expect(deliveryNotifier.state.activeDelivery?.assignedRiderName,
+          testRider.name);
       expect(deliveryNotifier.state.activeDelivery?.status,
           DeliveryStatus.assigned);
     });
@@ -67,6 +80,7 @@ void main() {
         weightClass: 'Light (<5kg)',
         instructions: '',
         estimatedFare: 2000,
+        customerUid: 'cust-123',
       );
 
       await deliveryNotifier.addTip(1000);

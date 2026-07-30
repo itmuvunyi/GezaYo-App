@@ -65,29 +65,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       }
       state = state.copyWith(
-          isLoading: false, errorMessage: 'Invalid credentials.');
+          isLoading: false,
+          errorMessage: 'Invalid credentials. Please try again.');
       return false;
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, errorMessage: 'Error: ${e.toString()}');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, errorMessage: msg);
       return false;
     }
   }
 
-  Future<bool> signUpWithPhone(String phone, String name, String role) async {
+  Future<bool> signUpWithEmail(
+      String email, String password, String name, String role) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final user = await _repository.signUpWithPhone(phone, name, role);
+      final user =
+          await _repository.signUpWithEmail(email, password, name, role);
       if (user != null) {
         state = state.copyWith(user: user, isLoading: false);
         return true;
       }
       state = state.copyWith(
-          isLoading: false, errorMessage: 'Phone OTP sign up failed.');
+          isLoading: false, errorMessage: 'Sign up failed. Please try again.');
       return false;
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, errorMessage: 'Error: ${e.toString()}');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, errorMessage: msg);
       return false;
     }
   }
@@ -104,8 +107,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false, errorMessage: 'Google sign in failed.');
       return false;
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, errorMessage: 'Error: ${e.toString()}');
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, errorMessage: msg);
       return false;
     }
   }
