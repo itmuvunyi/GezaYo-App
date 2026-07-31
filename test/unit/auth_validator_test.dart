@@ -6,7 +6,7 @@ void main() {
     test('validateEmail rejects empty and invalid formats', () {
       expect(AuthValidator.validateEmail(''), 'Email address is required.');
       expect(AuthValidator.validateEmail('invalid-email'),
-          'Please enter a valid email address');
+          'Please enter a valid email address (e.g., user@gezayo.rw).');
       expect(AuthValidator.validateEmail('  user@gezayo.rw  '), null);
     });
 
@@ -35,7 +35,6 @@ void main() {
           AuthValidator.sanitizeEmail('  USER@Gezayo.RW  '), 'user@gezayo.rw');
       expect(AuthValidator.sanitizeName('  Logger IRADUKUNDA  '),
           'Logger IRADUKUNDA');
-    }); 
-    
+    });
   });
 }

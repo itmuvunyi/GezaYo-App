@@ -10,94 +10,48 @@ import '../../features/rider/domain/transaction_model.dart';
 import 'database_service.dart';
 
 final firestoreServiceProvider = Provider<FirestoreService>((ref) {
-  final db = ref.watch(databaseServiceProvider);
-  try {
-    return FirestoreService(FirebaseFirestore.instance, db);
-  } catch (_) {
-    return FakeFirestoreService(db);
-  }
+  final localDb = ref.watch(databaseServiceProvider);
+  return FirestoreService(localDb);
 });
 
 class FirestoreService {
-  final FirebaseFirestore? _firestore;
   final DatabaseService _localDb;
+  FirebaseFirestore? _firestore;
+  CollectionReference<Map<String, dynamic>>? _usersCol;
+  CollectionReference<Map<String, dynamic>>? _deliveriesCol;
+  CollectionReference<Map<String, dynamic>>? _ridersCol;
+  CollectionReference<Map<String, dynamic>>? _transactionsCol;
+  CollectionReference<Map<String, dynamic>>? _notificationsCol;
 
-  FirestoreService(this._firestore, this._localDb);
+  FirestoreService(this._localDb) {
+    _initFirestore();
+  }
 
-  // Firestore Collection References
-  CollectionReference<Map<String, dynamic>>? get _usersCol =>
-      _firestore?.collection('users');
-
-  CollectionReference<Map<String, dynamic>>? get _deliveriesCol =>
-      _firestore?.collection('deliveries');
-
-  CollectionReference<Map<String, dynamic>>? get _ridersCol =>
-      _firestore?.collection('riders');
-
-  CollectionReference<Map<String, dynamic>>? get _transactionsCol =>
-      _firestore?.collection('transactions');
-
-  CollectionReference<Map<String, dynamic>>? get _notificationsCol =>
-      _firestore?.collection('notifications');
+  void _initFirestore() {
+    try {
+      _firestore = FirebaseFirestore.instance;
+      _usersCol = _firestore!.collection('users');
+      _deliveriesCol = _firestore!.collection('deliveries');
+      _ridersCol = _firestore!.collection('riders');
+      _transactionsCol = _firestore!.collection('transactions');
+      _notificationsCol = _firestore!.collection('notifications');
+    } catch (e) {
+      debugPrint(
+          'Firestore init bypassed (offline/unsupported platform): $e');
+    }
+  }
 
   // --- USERS COLLECTION SCHEMA & CRUD ---
 
-  /// Creates/updates user document in Cloud Firestore upon signup/login
   Future<void> saveUser(UserModel user) async {
     try {
       if (_usersCol != null) {
-        await _usersCol!
-            .doc(user.uid)
-            .set(user.toMap(), SetOptions(merge: true));
-        return;
+        await _usersCol!.doc(user.uid).set(user.toMap());
       }
     } catch (e) {
       debugPrint('Firestore saveUser error: $e');
     }
     await _localDb.saveUser(user.toMap());
-  }
-
-  Future<void> updateOnlineStatus(String uid, bool isOnline) async {
-    try {
-      if (_usersCol != null) {
-        await _usersCol!
-            .doc(uid)
-            .set({'isOnline': isOnline}, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Firestore updateOnlineStatus error: $e');
-    }
-  }
-
-  /// Updates rider location and online status in Firestore
-  Future<void> updateRiderLocation(
-      String uid, double lat, double lng) async {
-    try {
-      if (_usersCol != null) {
-        await _usersCol!.doc(uid).set({
-          'isOnline': true,
-          'latitude': lat,
-          'longitude': lng,
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Firestore updateRiderLocation error: $e');
-    }
-  }
-
-  /// Real-time stream of online riders with valid locations
-  Stream<List<UserModel>> getOnlineRidersStream() {
-    if (_usersCol != null) {
-      return _usersCol!
-          .where('role', isEqualTo: 'rider')
-          .where('isOnline', isEqualTo: true)
-          .snapshots()
-          .map((snap) => snap.docs
-              .map((doc) => UserModel.fromMap(doc.data()))
-              .where((u) => u.latitude != 0.0 && u.longitude != 0.0)
-              .toList());
-    }
-    return Stream.value([]);
   }
 
   Future<UserModel?> getUser(String uid) async {
@@ -111,12 +65,66 @@ class FirestoreService {
     } catch (e) {
       debugPrint('Firestore getUser error: $e');
     }
+
     final localUsers = _localDb.getUsers();
     final match = localUsers.firstWhere(
       (u) => u['uid'] == uid,
       orElse: () => {},
     );
-    return match.isNotEmpty ? UserModel.fromMap(match) : null;
+    if (match.isNotEmpty) {
+      return UserModel.fromMap(match);
+    }
+    return null;
+  }
+
+  Future<void> updateOnlineStatus(String uid, bool isOnline) async {
+    try {
+      if (_usersCol != null) {
+        await _usersCol!.doc(uid).update({'isOnline': isOnline});
+      }
+    } catch (e) {
+      debugPrint('Firestore updateOnlineStatus error: $e');
+    }
+  }
+
+  Future<void> updateRiderLocation(
+      String uid, double latitude, double longitude,
+      [bool isOnline = true]) async {
+    try {
+      if (_usersCol != null && uid.isNotEmpty) {
+        await _usersCol!.doc(uid).set({
+          'isOnline': isOnline,
+          'latitude': latitude,
+          'longitude': longitude,
+          'lastLocationUpdate': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      }
+      if (_ridersCol != null && uid.isNotEmpty) {
+        await _ridersCol!.doc(uid).set({
+          'uid': uid,
+          'currentLat': latitude,
+          'currentLng': longitude,
+          'isOnline': isOnline,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Firestore updateRiderLocation error: $e');
+    }
+  }
+
+  /// Real-time stream of online riders as UserModel instances with coordinates
+  Stream<List<UserModel>> getOnlineRidersStream() {
+    if (_usersCol != null) {
+      return _usersCol!
+          .where('role', isEqualTo: 'rider')
+          .where('isOnline', isEqualTo: true)
+          .snapshots()
+          .map((snap) {
+        return snap.docs.map((doc) => UserModel.fromMap(doc.data())).toList();
+      });
+    }
+    return Stream.value([]);
   }
 
   // --- DELIVERIES COLLECTION SCHEMA & CRUD ---
@@ -125,7 +133,6 @@ class FirestoreService {
     try {
       if (_deliveriesCol != null) {
         await _deliveriesCol!.doc(delivery.id).set(delivery.toMap());
-        return delivery;
       }
     } catch (e) {
       debugPrint('Firestore createDelivery error: $e');
@@ -158,12 +165,71 @@ class FirestoreService {
     return null;
   }
 
+  /// Atomically accept a job — prevents double-acceptance by checking if status is still 'searching'
+  Future<bool> acceptJobAtomic(
+      String jobId, String riderUid, String riderName, double riderRating) async {
+    try {
+      if (_deliveriesCol != null) {
+        final docRef = _deliveriesCol!.doc(jobId);
+        final snap = await docRef.get();
+        if (!snap.exists || snap.data() == null) return false;
+
+        final currentStatus = snap.data()!['status'];
+        if (currentStatus != 'searching') {
+          // Already accepted by another rider!
+          return false;
+        }
+
+        await docRef.update({
+          'status': 'assigned',
+          'assignedRiderUid': riderUid,
+          'assignedRiderName': riderName,
+          'assignedRiderRating': riderRating,
+          'acceptedAt': DateTime.now().toIso8601String(),
+        });
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Firestore acceptJobAtomic error: $e');
+    }
+    return true; // Fallback for local testing
+  }
+
+  /// Revert a cancelled job back to 'searching' so it remains on the dashboard for other riders
+  Future<void> cancelJobByRider(String jobId) async {
+    try {
+      if (_deliveriesCol != null && jobId.isNotEmpty) {
+        await _deliveriesCol!.doc(jobId).update({
+          'status': 'searching',
+          'assignedRiderUid': null,
+          'assignedRiderName': null,
+          'assignedRiderRating': 0.0,
+        });
+      }
+    } catch (e) {
+      debugPrint('Firestore cancelJobByRider error: $e');
+    }
+  }
+
+  /// Complete a delivery job — updates status to 'delivered' so it is removed from available dashboard
+  Future<void> completeJobByRider(String jobId) async {
+    try {
+      if (_deliveriesCol != null && jobId.isNotEmpty) {
+        await _deliveriesCol!.doc(jobId).update({
+          'status': 'delivered',
+          'completedAt': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e) {
+      debugPrint('Firestore completeJobByRider error: $e');
+    }
+  }
+
   Future<void> updateDelivery(
       String deliveryId, Map<String, dynamic> updates) async {
     try {
       if (_deliveriesCol != null) {
         await _deliveriesCol!.doc(deliveryId).update(updates);
-        return;
       }
     } catch (e) {
       debugPrint('Firestore updateDelivery error: $e');
@@ -181,7 +247,7 @@ class FirestoreService {
 
   /// Real-time stream for a single delivery document
   Stream<DeliveryModel?> getDeliveryStream(String deliveryId) {
-    if (_deliveriesCol != null) {
+    if (_deliveriesCol != null && deliveryId.isNotEmpty) {
       return _deliveriesCol!.doc(deliveryId).snapshots().map((snap) {
         if (snap.exists && snap.data() != null) {
           return DeliveryModel.fromMap(snap.data()!);
@@ -192,16 +258,92 @@ class FirestoreService {
     return Stream.value(null);
   }
 
-  /// Real-time stream of available jobs (status == 'searching') for riders
+  /// Real-time stream of all deliveries created by customer.
+  Stream<List<DeliveryModel>> getCustomerDeliveriesStream([String? customerPhone]) {
+    if (_deliveriesCol != null) {
+      return _deliveriesCol!.snapshots().map((snap) {
+        final list = snap.docs
+            .map((doc) => DeliveryModel.fromMap(doc.data()))
+            .where((d) =>
+                customerPhone == null ||
+                customerPhone.isEmpty ||
+                d.customerPhone == customerPhone)
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
+    }
+    return Stream.value([]);
+  }
+
+  /// Real-time stream of available jobs (status == 'searching') for riders.
+  /// Sorted in Dart memory to eliminate composite index requirement.
   Stream<List<DeliveryModel>> getAvailableJobsStream() {
     if (_deliveriesCol != null) {
       return _deliveriesCol!
           .where('status', isEqualTo: 'searching')
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snap) => snap.docs
-              .map((doc) => DeliveryModel.fromMap(doc.data()))
-              .toList());
+          .map((snap) {
+        final list = snap.docs
+            .map((doc) => DeliveryModel.fromMap(doc.data()))
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
+    }
+    return Stream.value([]);
+  }
+
+  Stream<List<TransactionModel>> getTransactionsStream(String userId) {
+    if (_transactionsCol != null) {
+      return _transactionsCol!.snapshots().map((snap) {
+        return snap.docs
+            .map((doc) => TransactionModel.fromMap(doc.data()))
+            .toList();
+      });
+    }
+    return Stream.value([]);
+  }
+
+  Future<List<TransactionModel>> getTransactions(String userId) async {
+    try {
+      if (_transactionsCol != null) {
+        final snap = await _transactionsCol!.limit(20).get();
+        if (snap.docs.isNotEmpty) {
+          return snap.docs
+              .map((doc) => TransactionModel.fromMap(doc.data()))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestore getTransactions error: $e');
+    }
+
+    final localTxs = _localDb.getTransactions();
+    if (localTxs.isNotEmpty) {
+      return localTxs.map((m) => TransactionModel.fromMap(m)).toList();
+    }
+    return [];
+  }
+
+  Future<void> addTransaction(TransactionModel tx) async {
+    try {
+      if (_transactionsCol != null) {
+        await _transactionsCol!.doc(tx.id).set(tx.toMap());
+      }
+    } catch (e) {
+      debugPrint('Firestore addTransaction error: $e');
+    }
+    await _localDb.addTransaction(tx.toMap());
+  }
+
+  // --- NOTIFICATIONS STREAM ---
+
+  Stream<List<Map<String, dynamic>>> getNotificationsStream() {
+    if (_notificationsCol != null) {
+      return _notificationsCol!.snapshots().map((snap) {
+        return snap.docs.map((doc) => doc.data()).toList();
+      });
     }
     return Stream.value([]);
   }
@@ -223,74 +365,23 @@ class FirestoreService {
     }
 
     final localRiders = _localDb.getRiders();
-    return localRiders.map((m) => RiderModel.fromMap(m)).toList();
+    if (localRiders.isNotEmpty) {
+      return localRiders.map((m) => RiderModel.fromMap(m)).toList();
+    }
+    return [];
   }
 
-  // --- TRANSACTIONS COLLECTION SCHEMA & CRUD ---
-
-  Future<List<TransactionModel>> getTransactions(String userId) async {
+  Future<void> updateRiderOnlineStatus(String riderUid, bool isOnline) async {
     try {
-      if (_transactionsCol != null) {
-        final snap = await _transactionsCol!.limit(20).get();
-        if (snap.docs.isNotEmpty) {
-          return snap.docs
-              .map((doc) => TransactionModel.fromMap(doc.data()))
-              .toList();
-        }
+      if (_ridersCol != null && riderUid.isNotEmpty) {
+        await _ridersCol!.doc(riderUid).set({
+          'isOnline': isOnline,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }, SetOptions(merge: true));
       }
     } catch (e) {
-      debugPrint('Firestore getTransactions error: $e');
+      debugPrint('Firestore updateRiderOnlineStatus error: $e');
     }
-
-    final localTx = _localDb.getTransactions();
-    return localTx.map((m) => TransactionModel.fromMap(m)).toList();
-  }
-
-  Future<void> addTransaction(TransactionModel tx) async {
-    try {
-      if (_transactionsCol != null) {
-        await _transactionsCol!.doc(tx.id).set(tx.toMap());
-        return;
-      }
-    } catch (e) {
-      debugPrint('Firestore addTransaction error: $e');
-    }
-    await _localDb.addTransaction(tx.toMap());
-  }
-
-  // --- NOTIFICATIONS REAL-TIME STREAM ---
-
-  Stream<List<Map<String, dynamic>>> getNotificationsStream() {
-    if (_notificationsCol != null) {
-      return _notificationsCol!
-          .orderBy('createdAt', descending: true)
-          .snapshots()
-          .map((snap) => snap.docs.map((doc) => doc.data()).toList());
-    }
-    return Stream.value([]);
   }
 }
 
-class FakeFirestoreService extends FirestoreService {
-  FakeFirestoreService(DatabaseService localDb) : super(null, localDb);
-
-  @override
-  Stream<List<Map<String, dynamic>>> getNotificationsStream() {
-    return Stream.value([]);
-  }
-
-  @override
-  Stream<List<UserModel>> getOnlineRidersStream() {
-    return Stream.value([]);
-  }
-
-  @override
-  Stream<DeliveryModel?> getDeliveryStream(String deliveryId) {
-    return Stream.value(null);
-  }
-
-  @override
-  Stream<List<DeliveryModel>> getAvailableJobsStream() {
-    return Stream.value([]);
-  }
-}

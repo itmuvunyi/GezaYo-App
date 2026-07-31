@@ -51,115 +51,118 @@ class SimulatedMapWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: mapCenter,
-              initialZoom: 13.5,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.gezayo_app',
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: mapCenter,
+                initialZoom: 13.5,
               ),
-              if (showRoute)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: [
-                        mapCenter,
-                        effectivePickup,
-                        effectiveDropoff,
-                      ],
-                      strokeWidth: 5.0,
-                      color: AppColors.primary,
-                    ),
-                  ],
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.gezayo_app',
                 ),
-              MarkerLayer(
-                markers: [
-                  // Pickup Marker
-                  Marker(
-                    point: effectivePickup,
-                    width: 44,
-                    height: 44,
-                    child: const Icon(
-                      Icons.location_on,
-                      color: AppColors.primary,
-                      size: 38,
-                    ),
+                if (showRoute)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: [
+                          mapCenter,
+                          effectivePickup,
+                          effectiveDropoff,
+                        ],
+                        strokeWidth: 5.0,
+                        color: AppColors.primary,
+                      ),
+                    ],
                   ),
-
-                  // Dropoff Marker
-                  if (showRoute)
+                MarkerLayer(
+                  markers: [
+                    // Pickup Marker
                     Marker(
-                      point: effectiveDropoff,
+                      key: ValueKey('pickup_${effectivePickup.latitude}_${effectivePickup.longitude}'),
+                      point: effectivePickup,
                       width: 44,
                       height: 44,
                       child: const Icon(
-                        Icons.flag,
-                        color: Colors.redAccent,
-                        size: 32,
+                        Icons.location_on,
+                        color: AppColors.primary,
+                        size: 38,
                       ),
                     ),
 
-                  // Rider Markers
-                  for (final pos in effectiveRiders)
-                    Marker(
-                      point: pos,
-                      width: 36,
-                      height: 36,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(color: Colors.black26, blurRadius: 4),
-                          ],
-                        ),
+                    // Dropoff Marker
+                    if (showRoute)
+                      Marker(
+                        key: ValueKey('dropoff_${effectiveDropoff.latitude}_${effectiveDropoff.longitude}'),
+                        point: effectiveDropoff,
+                        width: 44,
+                        height: 44,
                         child: const Icon(
-                          Icons.two_wheeler,
-                          color: Colors.white,
-                          size: 18,
+                          Icons.flag,
+                          color: Colors.redAccent,
+                          size: 32,
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ],
-          ),
 
-          // Center Location Header Badge
-          if (centerLabel != null)
-            Positioned(
-              top: 16,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 8),
+                    // Rider Markers with explicit keys to prevent mouse_tracker assertions on web
+                    for (int i = 0; i < effectiveRiders.length; i++)
+                      Marker(
+                        key: ValueKey('rider_${i}_${effectiveRiders[i].latitude}_${effectiveRiders[i].longitude}'),
+                        point: effectiveRiders[i],
+                        width: 36,
+                        height: 36,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.two_wheeler,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.my_location,
-                        size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      centerLabel!,
-                      style: AppTypography.titleMedium(
-                          color: AppColors.textPrimary),
-                    ),
-                  ],
+              ],
+            ),
+
+            // Center Location Header Badge
+            if (centerLabel != null)
+              Positioned(
+                top: 16,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 8),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.my_location,
+                          size: 16, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        centerLabel!,
+                        style: AppTypography.titleMedium(
+                            color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
   }
 }

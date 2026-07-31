@@ -14,9 +14,11 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 abstract class AuthRepository {
-  Future<UserModel?> loginWithEmail(String email, String password);
+  Future<UserModel?> loginWithEmail(String email, String password,
+      {String role = 'customer'});
   Future<UserModel?> signUpWithEmail(
-      String email, String password, String name, String role);
+      String email, String password, String name, String role,
+      [String phoneNumber = '']);
   Future<UserModel?> signInWithGoogle();
   Future<void> logout();
   Future<UserModel?> switchRole(UserModel currentUser, String newRole);
@@ -32,18 +34,24 @@ class AuthRepositoryImpl implements AuthRepository {
       this._storageService, this._apiService, this._firestoreService);
 
   @override
-  Future<UserModel?> loginWithEmail(String email, String password) async {
+  Future<UserModel?> loginWithEmail(String email, String password,
+      {String role = 'customer'}) async {
     try {
       final credential = await fb.FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
       if (credential.user != null) {
         final fbUser = credential.user!;
+        final existingUser = await _firestoreService.getUser(fbUser.uid);
+        final userRole = (existingUser != null && existingUser.role.isNotEmpty)
+            ? existingUser.role
+            : role;
+
         final user = UserModel(
           uid: fbUser.uid,
-          fullName: fbUser.displayName ?? email.split('@').first,
+          fullName: existingUser?.fullName ?? fbUser.displayName ?? email.split('@').first,
           email: fbUser.email ?? email,
-          phoneNumber: fbUser.phoneNumber ?? '',
-          role: _storageService.getUserRole(),
+          phoneNumber: existingUser?.phoneNumber ?? fbUser.phoneNumber ?? '',
+          role: userRole,
         );
         await _firestoreService.saveUser(user);
         await _storageService.setUserRole(user.role);
@@ -71,9 +79,10 @@ class AuthRepositoryImpl implements AuthRepository {
       // Offline fallback
     }
 
-    final response = await _apiService.loginWithEmail(email, password);
+    final response =
+        await _apiService.loginWithEmail(email, password, role: role);
     if (response.isSuccess && response.data != null) {
-      final user = UserModel.fromMap(response.data!);
+      final user = UserModel.fromMap(response.data!).copyWith(role: role);
       await _firestoreService.saveUser(user);
       await _storageService.setUserRole(user.role);
       await _storageService.setAuthenticated(true);
@@ -84,7 +93,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<UserModel?> signUpWithEmail(
-      String email, String password, String name, String role) async {
+      String email, String password, String name, String role,
+      [String phoneNumber = '']) async {
     try {
       final credential = await fb.FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
@@ -95,7 +105,7 @@ class AuthRepositoryImpl implements AuthRepository {
           uid: fbUser.uid,
           fullName: name,
           email: email,
-          phoneNumber: '',
+          phoneNumber: phoneNumber,
           role: role,
         );
         await _firestoreService.saveUser(user);

@@ -19,33 +19,31 @@ class CreateDeliveryScreen extends ConsumerStatefulWidget {
       _CreateDeliveryScreenState();
 }
 
-class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
-  final _pickupController = TextEditingController();
-  final _dropoffController = TextEditingController();
+class _CreateDeliveryScreenState
+    extends ConsumerState<CreateDeliveryScreen> {
+  final _pickupController = TextEditingController(text: '');
+  final _dropoffController =
+      TextEditingController(text: '');
   final _instructionsController = TextEditingController();
-  final _fareController = TextEditingController(text: '2500');
+  final _fareController = TextEditingController(text: '');
 
-  late String _selectedPackageType;
+  String _selectedPackageType = 'Parcel';
   String _selectedWeightClass = 'Light (<5kg)';
 
   @override
   void initState() {
     super.initState();
-    _selectedPackageType = widget.initialPackageType ?? 'Parcel';
+    if (widget.initialPackageType != null &&
+        widget.initialPackageType!.isNotEmpty) {
+      final raw = widget.initialPackageType!;
+      _selectedPackageType =
+          raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+    }
   }
 
-  @override
-  void dispose() {
-    _pickupController.dispose();
-    _dropoffController.dispose();
-    _instructionsController.dispose();
-    _fareController.dispose();
-    super.dispose();
-  }
-
-  void _submitRequest() {
+  Future<void> _submitRequest() async {
     final authState = ref.read(authNotifierProvider);
-    final customerUid = authState.user?.uid ?? '';
+    final customerUid = authState.user?.uid ?? 'usr-customer-101';
     final offerFare = double.tryParse(_fareController.text.trim()) ?? 2500.0;
 
     if (_pickupController.text.trim().isEmpty ||
@@ -58,7 +56,7 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
     }
 
     final notifier = ref.read(deliveryNotifierProvider.notifier);
-    notifier.createDeliveryRequest(
+    await notifier.createDeliveryRequest(
       pickupAddress: _pickupController.text.trim(),
       dropoffAddress: _dropoffController.text.trim(),
       packageType: _selectedPackageType,
@@ -68,7 +66,9 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
       customerUid: customerUid,
     );
 
-    context.push('/rider-matching');
+    if (mounted) {
+      context.push('/rider-matching');
+    }
   }
 
   @override
@@ -137,8 +137,7 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                             Expanded(
                               child: AppTextField(
                                 label: 'Pickup Location',
-                                hintText:
-                                    'Enter pickup address (e.g. 24 KN 59 St)',
+                                hintText: '24 KN 59 St, Kigali',
                                 controller: _pickupController,
                                 suffixIcon: const Icon(Icons.my_location,
                                     color: AppColors.primary),
@@ -170,7 +169,7 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                             Expanded(
                               child: AppTextField(
                                 label: 'Drop-off Location',
-                                hintText: 'Enter drop-off destination',
+                                hintText: 'Kimironko, Zindiro',
                                 controller: _dropoffController,
                               ),
                             ),
@@ -249,73 +248,76 @@ class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _WeightPill(
-                          label: 'Light (<5kg)',
-                          isSelected: _selectedWeightClass == 'Light (<5kg)',
-                          onTap: () => setState(
-                              () => _selectedWeightClass = 'Light (<5kg)'),
-                        ),
-                        const SizedBox(width: 8),
-                        _WeightPill(
-                          label: 'Medium (5-15kg)',
-                          isSelected: _selectedWeightClass == 'Medium (5-15kg)',
-                          onTap: () => setState(
-                              () => _selectedWeightClass = 'Medium (5-15kg)'),
-                        ),
-                        const SizedBox(width: 8),
-                        _WeightPill(
-                          label: 'Heavy (>15kg)',
-                          isSelected: _selectedWeightClass == 'Heavy (>15kg)',
-                          onTap: () => setState(
-                              () => _selectedWeightClass = 'Heavy (>15kg)'),
-                        ),
-                      ],
+                        'Light (<5kg)',
+                        'Medium (5-15kg)',
+                        'Heavy (>15kg)'
+                      ].map((w) {
+                        final isSelected = _selectedWeightClass == w;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(w),
+                            selected: isSelected,
+                            selectedColor: AppColors.primary,
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : theme.colorScheme.onSurface,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            onSelected: (val) {
+                              if (val) setState(() => _selectedWeightClass = w);
+                            },
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Customer Offered Price Input
-                  Text('Offered Price (RWF)',
+                  // Custom Fare Offer Input Section
+                  Text('Offer Your Price (RWF)',
                       style: AppTypography.headlineMedium(
                           color: theme.colorScheme.onSurface)),
                   const SizedBox(height: 4),
-                  Text('Enter the fare amount you wish to offer the rider',
+                  Text('Enter the fare you are offering for this delivery:',
                       style: AppTypography.bodySmall(
                           color: theme.colorScheme.onSurfaceVariant)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+
                   AppTextField(
-                    hintText: 'E.g. 2500',
+                    label: 'Offered Delivery Fare (RWF)',
+                    hintText: 'e.g. 2500',
                     controller: _fareController,
                     keyboardType: TextInputType.number,
-                    suffixIcon: const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('RWF',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary)),
-                    ),
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (val) => setState(() {}),
                   ),
 
                   const SizedBox(height: 24),
 
-                  // Delivery Instructions
+                  // Delivery Instructions Input Card
                   Text('Delivery Instructions (Optional)',
                       style: AppTypography.headlineMedium(
                           color: theme.colorScheme.onSurface)),
                   const SizedBox(height: 12),
+
                   AppTextField(
-                    hintText: 'E.g. Ring doorbell at gate, fragile item...',
+                    label: 'Special Instructions',
+                    hintText:
+                        'e.g. Leave with security guard, fragile package...',
                     controller: _instructionsController,
-                    maxLines: 3,
                   ),
+
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
           ),
 
-          // Bottom Fare Summary & Request CTA Bar
+          // Bottom Fare & Confirm Action Bar
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -388,10 +390,11 @@ class _PackageOptionCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primarySubtle : theme.cardColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
                 ? AppColors.primary
@@ -402,11 +405,12 @@ class _PackageOptionCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                size: 28,
-                color: isSelected
-                    ? AppColors.primary
-                    : theme.colorScheme.onSurfaceVariant),
+            Icon(
+              icon,
+              size: 28,
+              color:
+                  isSelected ? AppColors.primary : theme.colorScheme.onSurface,
+            ),
             const SizedBox(height: 6),
             Text(
               title,
@@ -417,45 +421,6 @@ class _PackageOptionCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WeightPill extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _WeightPill({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : theme.cardColor,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : theme.dividerColor.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTypography.titleMedium(
-            color: isSelected ? Colors.white : theme.colorScheme.onSurface,
-          ),
         ),
       ),
     );

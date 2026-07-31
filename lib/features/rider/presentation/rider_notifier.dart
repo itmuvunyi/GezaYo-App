@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../core/services/firestore_service.dart';
 import '../domain/transaction_model.dart';
 import '../data/rider_repository.dart';
@@ -11,15 +13,19 @@ class RiderState {
   final String? activeJobId;
   final List<TransactionModel> transactions;
   final bool isLoading;
+  final double? currentLat;
+  final double? currentLng;
 
   const RiderState({
-    this.isOnline = true,
+    this.isOnline = false,
     this.totalBalanceRwf = 0.0,
     this.earnedTodayRwf = 0.0,
     this.jobsDoneToday = 0,
     this.activeJobId,
     this.transactions = const [],
     this.isLoading = false,
+    this.currentLat,
+    this.currentLng,
   });
 
   // Convenience Aliases for UI & Tests
@@ -34,6 +40,8 @@ class RiderState {
     String? activeJobId,
     List<TransactionModel>? transactions,
     bool? isLoading,
+    double? currentLat,
+    double? currentLng,
     bool clearActiveJob = false,
   }) {
     return RiderState(
@@ -44,55 +52,171 @@ class RiderState {
       activeJobId: clearActiveJob ? null : (activeJobId ?? this.activeJobId),
       transactions: transactions ?? this.transactions,
       isLoading: isLoading ?? this.isLoading,
+      currentLat: currentLat ?? this.currentLat,
+      currentLng: currentLng ?? this.currentLng,
     );
   }
 }
-
-final riderNotifierProvider =
-    StateNotifierProvider<RiderNotifier, RiderState>((ref) {
-  final repo = ref.watch(riderRepositoryProvider);
-  final firestore = ref.watch(firestoreServiceProvider);
-  return RiderNotifier(repo, firestore);
-});
 
 class RiderNotifier extends StateNotifier<RiderState> {
   final RiderRepository _repository;
   final FirestoreService _firestoreService;
 
-  RiderNotifier(this._repository, this._firestoreService)
-      : super(const RiderState()) {
-    _loadTransactions();
+  RiderNotifier({
+    required RiderRepository repository,
+    required FirestoreService firestoreService,
+  })  : _repository = repository,
+        _firestoreService = firestoreService,
+        super(const RiderState()) {
+    _loadInitialState();
   }
 
-  Future<void> _loadTransactions() async {
-    final txs = await _repository.fetchTransactions();
-    state = state.copyWith(transactions: txs);
+  Future<void> _loadInitialState() async {
+    state = state.copyWith(isLoading: true);
+    final isOnline = await _repository.getOnlineStatus();
+
+    _firestoreService.getTransactionsStream('rider-1').listen((txs) {
+      double balance = 0.0;
+      double todayEarned = 0.0;
+      int jobsDoneCount = 0;
+      for (final tx in txs) {
+        if (tx.isPositive) {
+          balance += tx.amountRwf;
+          todayEarned += tx.amountRwf;
+          jobsDoneCount += 1;
+        } else {
+          balance -= tx.amountRwf;
+        }
+      }
+      state = state.copyWith(
+        totalBalanceRwf: balance < 0 ? 0.0 : balance,
+        earnedTodayRwf: todayEarned,
+        jobsDoneToday: jobsDoneCount,
+        transactions: txs,
+        isLoading: false,
+      );
+    });
+
+    state = state.copyWith(
+      isOnline: isOnline,
+      isLoading: false,
+    );
   }
 
-  void toggleOnlineStatus(bool online, [String riderUid = 'rider-1']) {
-    state = state.copyWith(isOnline: online);
-    _firestoreService.updateOnlineStatus(riderUid, online);
+  Future<void> toggleOnlineStatus([bool? newStatus, String riderUid = 'rider-1']) async {
+    final nextStatus = newStatus ?? !state.isOnline;
+    final success = await _repository.setOnlineStatus(nextStatus);
+
+    if (success) {
+      state = state.copyWith(isOnline: nextStatus);
+      if (nextStatus) {
+        await updateCurrentLocation(riderUid);
+      }
+      await _firestoreService.updateRiderOnlineStatus(riderUid, nextStatus);
+    }
   }
 
-  void acceptJob(String jobId, double fareRwf) {
-    state = state.copyWith(activeJobId: jobId);
+  /// Update current GPS location and push to Firestore rider location
+  Future<void> updateCurrentLocation([String riderUid = 'rider-1']) async {
+    try {
+      if (kIsWeb) {
+        // Fallback coordinates for Kigali, Rwanda on web
+        const lat = -1.9441;
+        const lng = 30.0619;
+        state = state.copyWith(currentLat: lat, currentLng: lng);
+        await _firestoreService.updateRiderLocation(
+          riderUid,
+          lat,
+          lng,
+          state.isOnline,
+        );
+        return;
+      }
+
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        final req = await Geolocator.requestPermission();
+        if (req != LocationPermission.whileInUse &&
+            req != LocationPermission.always) {
+          return;
+        }
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      state = state.copyWith(currentLat: pos.latitude, currentLng: pos.longitude);
+
+      await _firestoreService.updateRiderLocation(
+        riderUid,
+        pos.latitude,
+        pos.longitude,
+        state.isOnline,
+      );
+    } catch (e) {
+      debugPrint('Location fetch error: $e');
+    }
   }
 
-  void markPickedUp() {}
+  /// Atomically accept a delivery job — checks if job is still available ('searching').
+  /// Returns true if successfully accepted, false if already taken by another rider.
+  Future<bool> acceptJob(String jobId, double fareRwf,
+      [String riderUid = '', String riderName = '', double riderRating = 5.0]) async {
+    final success = await _firestoreService.acceptJobAtomic(
+        jobId, riderUid, riderName, riderRating);
 
-  void completeCurrentJob(double fareRwf) {
+    if (success) {
+      state = state.copyWith(activeJobId: jobId);
+      return true;
+    }
+    return false;
+  }
+
+  /// Cancel/reject an active job — reverts status back to 'searching' in Firestore
+  /// so it stays available on the dashboard for riders.
+  Future<void> cancelActiveJob() async {
+    final jobId = state.activeJobId;
+    if (jobId != null && jobId.isNotEmpty) {
+      await _firestoreService.cancelJobByRider(jobId);
+    }
+    state = state.copyWith(clearActiveJob: true);
+  }
+
+  /// Mark package picked up by rider — updates status to 'pickedUp' in Firestore.
+  Future<void> markPickedUp() async {
+    final jobId = state.activeJobId;
+    if (jobId != null && jobId.isNotEmpty) {
+      await _firestoreService.updateDelivery(jobId, {'status': 'pickedUp'});
+    }
+  }
+
+  /// Complete current delivery job — updates status to 'delivered' in Firestore,
+  /// removing it permanently from available jobs.
+  Future<void> completeCurrentJob([double fareRwf = 3500.0]) async {
+    final jobId = state.activeJobId;
+    if (jobId != null && jobId.isNotEmpty) {
+      await _firestoreService.completeJobByRider(jobId);
+    }
+
     final updatedBalance = state.totalBalanceRwf + fareRwf;
     final updatedToday = state.earnedTodayRwf + fareRwf;
     final updatedJobs = state.jobsDoneToday + 1;
 
     final newTx = TransactionModel(
       id: 'tx-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-      title: 'Delivery #${state.activeJobId ?? 'GZ-8821'}',
+      title: 'Delivery #${jobId ?? 'Unknown'}',
       dateText: 'Just now',
       amountRwf: fareRwf,
       type: TransactionType.jobEarning,
       status: TransactionStatus.completed,
     );
+
+    await _firestoreService.addTransaction(newTx);
 
     state = state.copyWith(
       totalBalanceRwf: updatedBalance,
@@ -134,3 +258,11 @@ class RiderNotifier extends StateNotifier<RiderState> {
     return false;
   }
 }
+
+final riderNotifierProvider =
+    StateNotifierProvider<RiderNotifier, RiderState>((ref) {
+  final repository = ref.watch(riderRepositoryProvider);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return RiderNotifier(
+      repository: repository, firestoreService: firestoreService);
+});

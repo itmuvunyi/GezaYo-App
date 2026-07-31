@@ -19,6 +19,7 @@ abstract class DeliveryRepository {
     required String instructions,
     required double estimatedFare,
     String customerUid = '',
+    String customerPhone = '',
   });
 
   Future<DeliveryModel?> getActiveDelivery();
@@ -44,6 +45,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     required String instructions,
     required double estimatedFare,
     String customerUid = '',
+    String customerPhone = '',
   }) async {
     final payload = {
       'pickupAddress': pickupAddress,
@@ -53,6 +55,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
       'instructions': instructions,
       'estimatedFareRwf': estimatedFare,
       'customerUid': customerUid,
+      'customerPhone': customerPhone,
       'status': 'searching',
       'createdAt': DateTime.now().toIso8601String(),
     };

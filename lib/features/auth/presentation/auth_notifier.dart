@@ -56,10 +56,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(user: user, selectedLanguage: lang);
   }
 
-  Future<bool> loginWithEmail(String email, String password) async {
+  Future<bool> loginWithEmail(String email, String password,
+      {String role = 'customer'}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final user = await _repository.loginWithEmail(email, password);
+      final user =
+          await _repository.loginWithEmail(email, password, role: role);
       if (user != null) {
         state = state.copyWith(user: user, isLoading: false);
         return true;
@@ -76,11 +78,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<bool> signUpWithEmail(
-      String email, String password, String name, String role) async {
+      String email, String password, String name, String role,
+      [String phoneNumber = '']) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final user =
-          await _repository.signUpWithEmail(email, password, name, role);
+      final user = await _repository.signUpWithEmail(
+          email, password, name, role, phoneNumber);
       if (user != null) {
         state = state.copyWith(user: user, isLoading: false);
         return true;

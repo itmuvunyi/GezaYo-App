@@ -11,6 +11,8 @@ import '../../../../core/widgets/simulated_map_widget.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../auth/domain/user_model.dart';
 import '../../../auth/presentation/auth_notifier.dart';
+import '../../domain/delivery_model.dart';
+import '../../presentation/delivery_notifier.dart';
 
 class CustomerHomeScreen extends ConsumerWidget {
   const CustomerHomeScreen({super.key});
@@ -19,7 +21,8 @@ class CustomerHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
     final firestoreService = ref.watch(firestoreServiceProvider);
-    final displayName = authState.user?.fullName.split(' ').first ?? 'Customer';
+    final user = authState.user;
+    final displayName = user?.fullName.split(' ').first ?? 'Customer';
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -37,32 +40,6 @@ class CustomerHomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Search Bar
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: theme.dividerColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.search,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 12),
-                      Text(
-                        'What are you sending today?',
-                        style: AppTypography.bodyLarge(
-                            color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
                 // 2x2 Service Cards Grid
                 GridView.count(
                   crossAxisCount: 2,
@@ -102,6 +79,64 @@ class CustomerHomeScreen extends ConsumerWidget {
                       onTap: () => context.push('/create-delivery?type=Other'),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Section Header: My Posted Jobs
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Posted Jobs',
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
+                    Icon(Icons.history, color: theme.colorScheme.onSurfaceVariant),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Stream of Posted Jobs by this customer
+                StreamBuilder<List<DeliveryModel>>(
+                  stream: firestoreService
+                      .getCustomerDeliveriesStream(user?.phoneNumber),
+                  builder: (context, snapshot) {
+                    final jobs = snapshot.data ?? [];
+                    if (jobs.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                              color: theme.dividerColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.local_shipping_outlined,
+                                color: AppColors.primary, size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'No posted jobs yet. Tap "Send Now" to post a delivery!',
+                                style: AppTypography.bodySmall(
+                                    color: theme.colorScheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: jobs.take(5).map((job) {
+                        return _PostedJobCard(job: job);
+                      }).toList(),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 24),
@@ -169,6 +204,168 @@ class CustomerHomeScreen extends ConsumerWidget {
           if (index == 1) context.push('/live-tracking');
           if (index == 2) context.push('/profile');
         },
+      ),
+    );
+  }
+}
+
+class _PostedJobCard extends ConsumerWidget {
+  final DeliveryModel job;
+
+  const _PostedJobCard({required this.job});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    Widget statusBadge;
+    switch (job.status) {
+      case DeliveryStatus.searching:
+        statusBadge = const StatusBadge(
+          text: 'Searching',
+          backgroundColor: AppColors.statusErrorBg,
+          textColor: AppColors.accentOrange,
+        );
+        break;
+      case DeliveryStatus.assigned:
+        statusBadge = const StatusBadge(
+          text: 'Rider Assigned',
+          backgroundColor: AppColors.statusSuccessBg,
+          textColor: AppColors.primary,
+        );
+        break;
+      case DeliveryStatus.pickedUp:
+        statusBadge = StatusBadge.onTheWay();
+        break;
+      case DeliveryStatus.delivered:
+        statusBadge = StatusBadge.completed();
+        break;
+      default:
+        statusBadge = const StatusBadge(
+          text: 'Pending',
+          backgroundColor: AppColors.statusSuccessBg,
+          textColor: AppColors.primary,
+        );
+    }
+
+    IconData packageIcon;
+    switch (job.packageType.toLowerCase()) {
+      case 'food':
+        packageIcon = Icons.restaurant;
+        break;
+      case 'grocery':
+        packageIcon = Icons.shopping_cart;
+        break;
+      case 'parcel':
+        packageIcon = Icons.inventory_2;
+        break;
+      default:
+        packageIcon = Icons.local_shipping;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          ref.read(deliveryNotifierProvider.notifier).setActiveDelivery(job);
+          if (job.status == DeliveryStatus.searching) {
+            context.push('/rider-matching');
+          } else if (job.status == DeliveryStatus.delivered) {
+            context.push('/order-completion');
+          } else {
+            context.push('/live-tracking');
+          }
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Job ID, Package Type, Status Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(packageIcon, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${job.packageType} #${job.id}',
+                      style: AppTypography.titleLarge(
+                          color: theme.colorScheme.onSurface),
+                    ),
+                  ],
+                ),
+                statusBadge,
+              ],
+            ),
+
+            const Divider(height: 20),
+
+            // Route: Pickup -> Dropoff
+            Row(
+              children: [
+                const Icon(Icons.radio_button_checked,
+                    color: AppColors.statusSuccess, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    job.pickupAddress,
+                    style: AppTypography.bodySmall(
+                        color: theme.colorScheme.onSurface),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.location_on,
+                    color: AppColors.accentOrange, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    job.dropoffAddress,
+                    style: AppTypography.bodySmall(
+                        color: theme.colorScheme.onSurface),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Bottom Row: Price & Action CTA
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${job.estimatedFareRwf.toStringAsFixed(0)} RWF',
+                  style: AppTypography.titleMedium(color: AppColors.primary),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      'View Details',
+                      style: AppTypography.labelLarge(color: AppColors.primary),
+                    ),
+                    const Icon(Icons.chevron_right,
+                        color: AppColors.primary, size: 18),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

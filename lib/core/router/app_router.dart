@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/splash_onboarding/presentation/splash_screen.dart';
 import '../../features/splash_onboarding/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/auth_screen.dart';
+import '../../features/auth/presentation/auth_notifier.dart';
 import '../../features/customer/dashboard/presentation/customer_home_screen.dart';
 import '../../features/customer/delivery_request/presentation/create_delivery_screen.dart';
 import '../../features/customer/rider_matching/presentation/rider_matching_screen.dart';
@@ -21,6 +23,40 @@ import '../../features/help/presentation/help_center_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
+  redirect: (BuildContext context, GoRouterState state) {
+    try {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final authState = container.read(authNotifierProvider);
+      final user = authState.user;
+
+      if (user != null) {
+        final loc = state.uri.path;
+        final isCustomerRoute = loc == '/customer' ||
+            loc == '/create-delivery' ||
+            loc == '/rider-matching' ||
+            loc == '/live-tracking' ||
+            loc == '/order-completion';
+
+        final isRiderRoute = loc == '/rider' ||
+            loc == '/job-details' ||
+            loc == '/rider-navigation' ||
+            loc == '/earnings';
+
+        // A rider must NEVER land on customer dashboard or request delivery screens
+        if (user.isRider && isCustomerRoute) {
+          return '/rider';
+        }
+
+        // A customer must NEVER land on rider dashboard or earnings screens
+        if (user.isCustomer && isRiderRoute) {
+          return '/customer';
+        }
+      }
+    } catch (_) {
+      // Ignore during initial setup
+    }
+    return null;
+  },
   routes: [
     GoRoute(
       path: '/splash',

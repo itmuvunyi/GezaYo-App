@@ -20,6 +20,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   bool _isSignUp = false;
   bool _obscurePassword = true;
@@ -57,6 +58,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final notifier = ref.read(authNotifierProvider.notifier);
     final sanitizedEmail = AuthValidator.sanitizeEmail(_emailController.text);
     final sanitizedName = AuthValidator.sanitizeName(_nameController.text);
+    final phone = _phoneController.text.trim();
 
     bool success = false;
 
@@ -66,16 +68,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _passwordController.text,
         sanitizedName,
         _selectedRole,
+        phone,
       );
     } else {
       success = await notifier.loginWithEmail(
         sanitizedEmail,
         _passwordController.text,
+        role: _selectedRole,
       );
     }
 
     if (success && mounted) {
-      if (_selectedRole == 'rider') {
+      final user = ref.read(authNotifierProvider).user;
+      final role = user?.role ?? _selectedRole;
+      if (role == 'rider') {
         context.go('/rider');
       } else {
         context.go('/customer');
@@ -266,73 +272,82 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
               const SizedBox(height: 20),
 
-              // Role Selector Switcher (Customer vs Rider)
-              if (_isSignUp) ...[
-                Container(
-                  decoration: BoxDecoration(
-                    color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.colorScheme.outline),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () =>
-                              setState(() => _selectedRole = 'customer'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: _selectedRole == 'customer'
-                                  ? theme.colorScheme.primary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Customer Account',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.labelLarge(
-                                color: _selectedRole == 'customer'
-                                    ? Colors.white
-                                    : theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _selectedRole = 'rider'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: _selectedRole == 'rider'
-                                  ? theme.colorScheme.primary
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Rider Account',
-                              textAlign: TextAlign.center,
-                              style: AppTypography.labelLarge(
-                                color: _selectedRole == 'rider'
-                                    ? Colors.white
-                                    : theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              // Role Selector Switcher (Customer vs Rider) - ALWAYS VISIBLE
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.colorScheme.outline),
                 ),
-                const SizedBox(height: 16),
+                padding: const EdgeInsets.all(4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () =>
+                            setState(() => _selectedRole = 'customer'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedRole == 'customer'
+                                ? theme.colorScheme.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Customer Account',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.labelLarge(
+                              color: _selectedRole == 'customer'
+                                  ? Colors.white
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedRole = 'rider'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedRole == 'rider'
+                                ? theme.colorScheme.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Rider Account',
+                            textAlign: TextAlign.center,
+                            style: AppTypography.labelLarge(
+                              color: _selectedRole == 'rider'
+                                  ? Colors.white
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              if (_isSignUp) ...[
                 AppTextField(
                   label: 'Full Name',
                   hintText: 'Enter your full name',
                   controller: _nameController,
                   errorText: _nameError,
+                ),
+                const SizedBox(height: 12),
+                AppTextField(
+                  label: 'Phone Number',
+                  hintText: 'e.g. +250 788 123 456',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -450,7 +465,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             .read(authNotifierProvider.notifier)
                             .signInWithGoogle();
                         if (!context.mounted) return;
-                        if (success) context.go('/customer');
+                        if (success) {
+                          final user = ref.read(authNotifierProvider).user;
+                          final role = user?.role ?? _selectedRole;
+                          if (role == 'rider') {
+                            context.go('/rider');
+                          } else {
+                            context.go('/customer');
+                          }
+                        }
                       },
                       icon: const Icon(Icons.g_mobiledata,
                           size: 28, color: Colors.deepOrange),

@@ -52,7 +52,7 @@ class BackendApiService {
   // --- AUTH ENDPOINTS ---
 
   Future<ApiResponse<Map<String, dynamic>>> loginWithEmail(
-      String email, String password) async {
+      String email, String password, {String role = 'customer'}) async {
     await _delay();
     if (email.isEmpty || password.isEmpty) {
       return ApiResponse.error('Email and password cannot be empty.',
@@ -64,7 +64,7 @@ class BackendApiService {
       'fullName': 'Jean-Paul N.',
       'email': email,
       'phoneNumber': '+250 788 000 000',
-      'role': 'customer',
+      'role': role,
       'avatarUrl': '',
       'rating': 4.9,
       'totalDeliveries': 24,

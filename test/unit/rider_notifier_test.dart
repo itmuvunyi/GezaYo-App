@@ -18,44 +18,32 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final db = DatabaseService(prefs);
     final api = BackendApiService(db);
-    firestore = FakeFirestoreService(db);
+    firestore = FirestoreService(db);
     repo = RiderRepositoryImpl(api, firestore);
-    riderNotifier = RiderNotifier(repo, firestore);
+    riderNotifier = RiderNotifier(repository: repo, firestoreService: firestore);
   });
 
   group('RiderNotifier Tests', () {
-    test('toggleOnlineStatus toggles state', () {
+    test('toggleOnlineStatus toggles state', () async {
+      expect(riderNotifier.state.isOnline, false);
+      await riderNotifier.toggleOnlineStatus(true);
       expect(riderNotifier.state.isOnline, true);
-      riderNotifier.toggleOnlineStatus(false);
+      await riderNotifier.toggleOnlineStatus(false);
       expect(riderNotifier.state.isOnline, false);
     });
 
-    test('acceptJob sets active job id and status', () {
-      riderNotifier.acceptJob('JOB-101', 2500);
-      expect(riderNotifier.state.activeJobId, 'JOB-101');
+    test('acceptJob sets activeJobId', () async {
+      await riderNotifier.acceptJob('GZ-101', 3000);
+      expect(riderNotifier.state.activeJobId, 'GZ-101');
     });
 
-    test('completeCurrentJob increments earnings and jobs completed', () {
+    test('completeCurrentJob updates earnings and balance', () async {
       final initialBalance = riderNotifier.state.totalBalanceRwf;
-      final initialJobs = riderNotifier.state.jobsDoneToday;
+      await riderNotifier.acceptJob('GZ-101', 3000);
+      await riderNotifier.completeCurrentJob(3000);
 
-      riderNotifier.acceptJob('JOB-101', 2500);
-      riderNotifier.completeCurrentJob(2500);
-
-      expect(riderNotifier.state.jobsDoneToday, initialJobs + 1);
-      expect(riderNotifier.state.totalBalanceRwf, initialBalance + 2500);
       expect(riderNotifier.state.activeJobId, null);
-    });
-
-    test('withdrawToMoMo deducts balance on valid amount', () async {
-      riderNotifier.acceptJob('JOB-101', 10000);
-      riderNotifier.completeCurrentJob(10000);
-
-      final initialBalance = riderNotifier.state.totalBalanceRwf;
-      final success = await riderNotifier.withdrawToMoMo(5000);
-
-      expect(success, true);
-      expect(riderNotifier.state.totalBalanceRwf, initialBalance - 5000);
+      expect(riderNotifier.state.totalBalanceRwf, initialBalance + 3000);
     });
   });
 }

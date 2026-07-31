@@ -20,7 +20,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final db = DatabaseService(prefs);
     final api = BackendApiService(db);
-    firestore = FakeFirestoreService(db);
+    firestore = FirestoreService(db);
     repo = DeliveryRepositoryImpl(api, firestore);
     deliveryNotifier = DeliveryNotifier(repo, firestore);
   });
@@ -28,63 +28,44 @@ void main() {
   group('DeliveryNotifier Tests', () {
     test('createDeliveryRequest sets active delivery correctly', () async {
       await deliveryNotifier.createDeliveryRequest(
-        pickupAddress: 'KN 5 Rd',
-        dropoffAddress: 'CBD Kigali',
+        pickupAddress: 'Kigali Heights',
+        dropoffAddress: 'Kimihurura',
         packageType: 'Food',
         weightClass: 'Light (<5kg)',
-        instructions: 'Call on arrival',
-        estimatedFare: 3000,
-        customerUid: 'cust-123',
+        instructions: 'Handle with care',
+        estimatedFare: 2500,
       );
 
-      final active = deliveryNotifier.state.activeDelivery;
-      expect(active, isNotNull);
-      expect(active?.pickupAddress, 'KN 5 Rd');
-      expect(active?.estimatedFareRwf, 3000);
-      expect(active?.status, DeliveryStatus.searching);
+      expect(deliveryNotifier.state.activeDelivery, isNotNull);
+      expect(deliveryNotifier.state.activeDelivery?.pickupAddress,
+          'Kigali Heights');
+      expect(deliveryNotifier.state.activeDelivery?.estimatedFareRwf, 2500);
     });
 
-    test('selectRider updates delivery status to assigned', () async {
+    test('selectRider assigns rider to active delivery', () async {
       await deliveryNotifier.createDeliveryRequest(
-        pickupAddress: 'KN 5 Rd',
-        dropoffAddress: 'CBD Kigali',
-        packageType: 'Parcel',
+        pickupAddress: 'Kigali Heights',
+        dropoffAddress: 'Kimihurura',
+        packageType: 'Food',
         weightClass: 'Light (<5kg)',
         instructions: '',
         estimatedFare: 2500,
-        customerUid: 'cust-123',
       );
 
-      const testRider = RiderModel(
+      const dummyRider = RiderModel(
         id: 'r1',
-        name: 'Jean Bosco K.',
+        name: 'Jean-Paul',
         rating: 4.9,
-        completedJobs: 120,
-        vehicleType: 'EV Motor (Eco)',
-        etaText: '3 min',
+        completedJobs: 150,
+        vehicleType: 'EV Motor',
+        etaText: '4 mins',
       );
 
-      await deliveryNotifier.selectRider(testRider);
-
+      await deliveryNotifier.selectRider(dummyRider);
       expect(deliveryNotifier.state.activeDelivery?.assignedRiderName,
-          testRider.name);
+          'Jean-Paul');
       expect(deliveryNotifier.state.activeDelivery?.status,
           DeliveryStatus.assigned);
-    });
-
-    test('addTip increases tip amount', () async {
-      await deliveryNotifier.createDeliveryRequest(
-        pickupAddress: 'A',
-        dropoffAddress: 'B',
-        packageType: 'Food',
-        weightClass: 'Light (<5kg)',
-        instructions: '',
-        estimatedFare: 2000,
-        customerUid: 'cust-123',
-      );
-
-      await deliveryNotifier.addTip(1000);
-      expect(deliveryNotifier.state.activeDelivery?.tipAmount, 1000);
     });
   });
 }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/custom_bottom_nav.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../auth/presentation/auth_notifier.dart';
 import '../../presentation/rider_notifier.dart';
+import '../../../customer/domain/delivery_model.dart';
 
 class RiderHomeScreen extends ConsumerWidget {
   const RiderHomeScreen({super.key});
@@ -14,9 +17,14 @@ class RiderHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final riderState = ref.watch(riderNotifierProvider);
     final notifier = ref.read(riderNotifierProvider.notifier);
+    final authState = ref.watch(authNotifierProvider);
+    final firestoreService = ref.watch(firestoreServiceProvider);
+    final theme = Theme.of(context);
+    final riderUid = authState.user?.uid ?? '';
+    final riderName = authState.user?.fullName ?? 'Rider';
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Row(
@@ -31,19 +39,21 @@ class RiderHomeScreen extends ConsumerWidget {
             ),
             const SizedBox(width: 10),
             Text('GezaYo',
-                style: AppTypography.headlineMedium(color: AppColors.primary)),
+                style: AppTypography.headlineMedium(
+                    color: theme.colorScheme.primary)),
           ],
         ),
         actions: [
           // ONLINE / OFFLINE Switcher Pill
           GestureDetector(
-            onTap: () => notifier.toggleOnlineStatus(!riderState.isOnline),
+            onTap: () =>
+                notifier.toggleOnlineStatus(!riderState.isOnline, riderUid),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: riderState.isOnline
                     ? AppColors.statusSuccessBg
-                    : AppColors.cardBorder,
+                    : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -53,7 +63,7 @@ class RiderHomeScreen extends ConsumerWidget {
                     style: AppTypography.labelMedium(
                       color: riderState.isOnline
                           ? AppColors.statusSuccess
-                          : AppColors.textMuted,
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -63,7 +73,7 @@ class RiderHomeScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: riderState.isOnline
                           ? AppColors.statusSuccess
-                          : AppColors.textMuted,
+                          : theme.colorScheme.onSurfaceVariant,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -73,8 +83,8 @@ class RiderHomeScreen extends ConsumerWidget {
           ),
           const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.notifications_none,
-                color: AppColors.textPrimary),
+            icon: Icon(Icons.notifications_none,
+                color: theme.colorScheme.onSurface),
             onPressed: () => context.push('/settings/notifications'),
           ),
         ],
@@ -126,7 +136,7 @@ class RiderHomeScreen extends ConsumerWidget {
                                 color: AppColors.errandsIcon)),
                         const SizedBox(height: 4),
                         Text(
-                          '0${riderState.jobsDoneToday}',
+                          '${riderState.jobsDoneToday}',
                           style: AppTypography.headlineLarge(
                               color: AppColors.errandsIcon),
                         ),
@@ -143,63 +153,91 @@ class RiderHomeScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Available Jobs', style: AppTypography.headlineMedium()),
+                Text('Available Jobs',
+                    style: AppTypography.headlineMedium(
+                        color: theme.colorScheme.onSurface)),
                 StatusBadge.live(),
               ],
             ),
 
             const SizedBox(height: 16),
 
-            // Available Job Cards List
-            _RiderJobCard(
-              categoryTag: 'FOOD DELIVERY',
-              categoryColor: AppColors.foodBg,
-              categoryTextColor: AppColors.foodIcon,
-              title: 'Kigali Heights Mall',
-              distance: '1.2 km away',
-              priceRwf: '1,200',
-              pickLocation: 'Kigali Heights',
-              dropLocation: 'Kimihurura',
-              estimatedMins: '15 min est.',
-              onAccept: () {
-                notifier.acceptJob('GZ-8821', 1200);
-                context.push('/job-details');
-              },
-            ),
+            // Real-time Available Jobs from Firestore
+            StreamBuilder<List<DeliveryModel>>(
+              stream: firestoreService.getAvailableJobsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
 
-            const SizedBox(height: 16),
+                final jobs = snapshot.data ?? [];
 
-            _RiderJobCard(
-              categoryTag: 'PACKAGE PICKUP',
-              categoryColor: AppColors.parcelBg,
-              categoryTextColor: AppColors.parcelIcon,
-              title: 'M. Peace Plaza',
-              distance: '0.5 km away',
-              priceRwf: '2,500',
-              pickLocation: 'CBD Area',
-              dropLocation: 'Nyarutarama',
-              estimatedMins: '28 min est.',
-              onAccept: () {
-                notifier.acceptJob('GZ-8794', 2500);
-                context.push('/job-details');
-              },
-            ),
+                if (jobs.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.inbox_outlined,
+                            size: 48, color: theme.colorScheme.onSurfaceVariant),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No available jobs right now',
+                          style: AppTypography.titleLarge(
+                              color: theme.colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'New delivery requests will appear here in real time',
+                          style: AppTypography.bodySmall(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-            const SizedBox(height: 16),
-
-            _RiderJobCard(
-              categoryTag: 'URGENT',
-              categoryColor: AppColors.statusErrorBg,
-              categoryTextColor: AppColors.statusError,
-              title: 'Inzora Rooftop Cafe',
-              distance: '2.8 km away',
-              priceRwf: '3,800',
-              pickLocation: 'Inzora Cafe',
-              dropLocation: 'Kicukiro',
-              estimatedMins: '22 min est.',
-              onAccept: () {
-                notifier.acceptJob('GZ-9900', 3800);
-                context.push('/job-details');
+                return Column(
+                  children: jobs.map((job) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _RiderJobCard(
+                        job: job,
+                        onAccept: () async {
+                          final success = await notifier.acceptJob(
+                            job.id,
+                            job.estimatedFareRwf,
+                            riderUid,
+                            riderName,
+                            authState.user?.rating ?? 0.0,
+                          );
+                          if (success && context.mounted) {
+                            context.push('/job-details');
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'This job has already been accepted by another rider!'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }).toList(),
+                );
               },
             ),
 
@@ -219,38 +257,55 @@ class RiderHomeScreen extends ConsumerWidget {
 }
 
 class _RiderJobCard extends StatelessWidget {
-  final String categoryTag;
-  final Color categoryColor;
-  final Color categoryTextColor;
-  final String title;
-  final String distance;
-  final String priceRwf;
-  final String pickLocation;
-  final String dropLocation;
-  final String estimatedMins;
+  final DeliveryModel job;
   final VoidCallback onAccept;
 
   const _RiderJobCard({
-    required this.categoryTag,
-    required this.categoryColor,
-    required this.categoryTextColor,
-    required this.title,
-    required this.distance,
-    required this.priceRwf,
-    required this.pickLocation,
-    required this.dropLocation,
-    required this.estimatedMins,
+    required this.job,
     required this.onAccept,
   });
 
+  Color _categoryColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'food':
+        return AppColors.foodBg;
+      case 'grocery':
+        return AppColors.groceryBg;
+      case 'parcel':
+        return AppColors.parcelBg;
+      default:
+        return AppColors.errandsBg;
+    }
+  }
+
+  Color _categoryTextColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'food':
+        return AppColors.foodIcon;
+      case 'grocery':
+        return AppColors.groceryIcon;
+      case 'parcel':
+        return AppColors.parcelIcon;
+      default:
+        return AppColors.errandsIcon;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final priceFormatted =
+        job.estimatedFareRwf.toStringAsFixed(0).replaceAllMapped(
+              RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+              (Match m) => '${m[1]},',
+            );
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,24 +317,25 @@ class _RiderJobCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: categoryColor,
+                  color: _categoryColor(job.packageType),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  categoryTag,
-                  style: AppTypography.labelMedium(color: categoryTextColor),
+                  job.packageType.toUpperCase(),
+                  style: AppTypography.labelMedium(
+                      color: _categoryTextColor(job.packageType)),
                 ),
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(priceRwf,
+                  Text(priceFormatted,
                       style: AppTypography.headlineLarge(
                           color: AppColors.primary)),
                   const SizedBox(width: 4),
                   Text('RWF',
                       style: AppTypography.bodySmall(
-                          color: AppColors.textSecondary)),
+                          color: theme.colorScheme.onSurfaceVariant)),
                 ],
               ),
             ],
@@ -287,13 +343,13 @@ class _RiderJobCard extends StatelessWidget {
 
           const SizedBox(height: 10),
 
-          Text(title, style: AppTypography.titleLarge()),
-          Text(distance,
-              style: AppTypography.bodySmall(color: AppColors.textSecondary)),
+          Text(job.pickupAddress,
+              style:
+                  AppTypography.titleLarge(color: theme.colorScheme.onSurface)),
 
           const SizedBox(height: 14),
 
-          // Route Details with map preview image placeholder
+          // Route Details
           Row(
             children: [
               Container(
@@ -309,9 +365,10 @@ class _RiderJobCard extends StatelessWidget {
                     children: [
                       const Icon(Icons.two_wheeler,
                           size: 20, color: AppColors.primary),
-                      Text(estimatedMins,
-                          style: const TextStyle(
-                              fontSize: 9, color: AppColors.textSecondary)),
+                      Text(job.weightClass,
+                          style: TextStyle(
+                              fontSize: 8,
+                              color: theme.colorScheme.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -326,8 +383,12 @@ class _RiderJobCard extends StatelessWidget {
                         const Icon(Icons.circle,
                             color: AppColors.accentOrange, size: 10),
                         const SizedBox(width: 8),
-                        Text('Pick: $pickLocation',
-                            style: AppTypography.bodyMedium()),
+                        Expanded(
+                          child: Text('Pick: ${job.pickupAddress}',
+                              style: AppTypography.bodyMedium(
+                                  color: theme.colorScheme.onSurface),
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const Padding(
@@ -343,8 +404,12 @@ class _RiderJobCard extends StatelessWidget {
                         const Icon(Icons.circle,
                             color: AppColors.statusSuccess, size: 10),
                         const SizedBox(width: 8),
-                        Text('Drop: $dropLocation',
-                            style: AppTypography.bodyMedium()),
+                        Expanded(
+                          child: Text('Drop: ${job.dropoffAddress}',
+                              style: AppTypography.bodyMedium(
+                                  color: theme.colorScheme.onSurface),
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                   ],

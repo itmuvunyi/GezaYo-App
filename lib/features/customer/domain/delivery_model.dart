@@ -13,6 +13,7 @@ enum DeliveryStatus {
 class DeliveryModel extends Equatable {
   final String id;
   final String customerUid;
+  final String? customerPhone;
   final String pickupAddress;
   final String dropoffAddress;
   final String packageType; // 'Food', 'Parcel', 'Grocery', 'Other'
@@ -33,6 +34,7 @@ class DeliveryModel extends Equatable {
   const DeliveryModel({
     required this.id,
     this.customerUid = '',
+    this.customerPhone,
     required this.pickupAddress,
     required this.dropoffAddress,
     required this.packageType,
@@ -55,6 +57,7 @@ class DeliveryModel extends Equatable {
   DeliveryModel copyWith({
     String? id,
     String? customerUid,
+    String? customerPhone,
     String? pickupAddress,
     String? dropoffAddress,
     String? packageType,
@@ -74,6 +77,7 @@ class DeliveryModel extends Equatable {
     return DeliveryModel(
       id: id ?? this.id,
       customerUid: customerUid ?? this.customerUid,
+      customerPhone: customerPhone ?? this.customerPhone,
       pickupAddress: pickupAddress ?? this.pickupAddress,
       dropoffAddress: dropoffAddress ?? this.dropoffAddress,
       packageType: packageType ?? this.packageType,
@@ -96,6 +100,7 @@ class DeliveryModel extends Equatable {
     return {
       'id': id,
       'customerUid': customerUid,
+      'customerPhone': customerPhone,
       'pickupAddress': pickupAddress,
       'dropoffAddress': dropoffAddress,
       'packageType': packageType,
@@ -118,6 +123,7 @@ class DeliveryModel extends Equatable {
     return DeliveryModel(
       id: map['id'] ?? '',
       customerUid: map['customerUid'] ?? '',
+      customerPhone: map['customerPhone'],
       pickupAddress: map['pickupAddress'] ?? '',
       dropoffAddress: map['dropoffAddress'] ?? '',
       packageType: map['packageType'] ?? 'Parcel',
@@ -148,6 +154,7 @@ class DeliveryModel extends Equatable {
   List<Object?> get props => [
         id,
         customerUid,
+        customerPhone,
         pickupAddress,
         dropoffAddress,
         packageType,

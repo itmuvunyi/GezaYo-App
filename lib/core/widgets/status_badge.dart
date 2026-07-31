@@ -35,6 +35,12 @@ class StatusBadge extends StatelessWidget {
         textColor: AppColors.primary,
       );
 
+  factory StatusBadge.searching() => const StatusBadge(
+        text: 'Searching',
+        backgroundColor: AppColors.statusErrorBg,
+        textColor: AppColors.accentOrange,
+      );
+
   factory StatusBadge.completed() => const StatusBadge(
         text: 'COMPLETED',
         backgroundColor: AppColors.statusSuccessBg,

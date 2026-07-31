@@ -75,6 +75,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     required String instructions,
     required double estimatedFare,
     String customerUid = '',
+    String customerPhone = '',
   }) async {
     state = state.copyWith(isLoading: true);
     final delivery = await _repository.createDeliveryRequest(
@@ -85,6 +86,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
       instructions: instructions,
       estimatedFare: estimatedFare,
       customerUid: customerUid,
+      customerPhone: customerPhone,
     );
     state = state.copyWith(activeDelivery: delivery, isLoading: false);
 
@@ -92,6 +94,11 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     if (delivery != null) {
       listenToDelivery(delivery.id);
     }
+  }
+
+  void setActiveDelivery(DeliveryModel delivery) {
+    state = state.copyWith(activeDelivery: delivery);
+    listenToDelivery(delivery.id);
   }
 
   void listenToDelivery(String deliveryId) {
@@ -132,11 +139,16 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     }
   }
 
-  Future<void> completeAndClearOrder() async {
-    if (state.activeDelivery != null) {
-      await _repository.clearActiveDelivery(state.activeDelivery!.id);
-      _deliverySubscription?.cancel();
-      state = state.copyWith(clearActiveDelivery: true);
+  Future<void> clearActiveDelivery([String? deliveryId]) async {
+    final id = deliveryId ?? state.activeDelivery?.id;
+    if (id != null && id.isNotEmpty) {
+      await _repository.clearActiveDelivery(id);
     }
+    _deliverySubscription?.cancel();
+    state = state.copyWith(clearActiveDelivery: true);
+  }
+
+  Future<void> completeAndClearOrder() async {
+    await clearActiveDelivery();
   }
 }

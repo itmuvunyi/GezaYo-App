@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/phone_helper.dart';
 import '../../../../core/widgets/custom_bottom_nav.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../customer/domain/delivery_model.dart';
 import '../../presentation/delivery_notifier.dart';
 
 class LiveTrackingScreen extends ConsumerWidget {
@@ -16,6 +18,11 @@ class LiveTrackingScreen extends ConsumerWidget {
     final deliveryState = ref.watch(deliveryNotifierProvider);
     final delivery = deliveryState.activeDelivery;
     final theme = Theme.of(context);
+
+    final isSearching = delivery?.status == DeliveryStatus.searching;
+    final isAssigned = delivery?.status == DeliveryStatus.assigned;
+    final isPickedUp = delivery?.status == DeliveryStatus.pickedUp;
+    final isDelivered = delivery?.status == DeliveryStatus.delivered;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -70,14 +77,22 @@ class LiveTrackingScreen extends ConsumerWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('ESTIMATED ARRIVAL',
-                              style: AppTypography.labelMedium(
-                                  color: AppColors.primary)),
+                          Text(
+                            isDelivered
+                                ? 'DELIVERY COMPLETE'
+                                : 'ESTIMATED ARRIVAL',
+                            style: AppTypography.labelMedium(
+                                color: isDelivered
+                                    ? AppColors.statusSuccess
+                                    : AppColors.primary),
+                          ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
                               Text(
-                                '${delivery?.estimatedArrivalMins ?? 12}',
+                                isDelivered
+                                    ? '0'
+                                    : '${delivery?.estimatedArrivalMins ?? 12}',
                                 style: AppTypography.displayMedium(
                                     color: theme.colorScheme.onSurface),
                               ),
@@ -89,20 +104,45 @@ class LiveTrackingScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      StatusBadge.onTheWay(),
+                      if (isDelivered)
+                        const StatusBadge(
+                          text: 'Delivered',
+                          backgroundColor: AppColors.statusSuccessBg,
+                          textColor: AppColors.statusSuccess,
+                        )
+                      else if (isPickedUp)
+                        StatusBadge.onTheWay()
+                      else
+                        StatusBadge.searching(),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Horizontal 4-Step Stepper
-                  const Row(
+                  // Horizontal 4-Step Stepper (Dynamic from Firestore)
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _StepItem(title: 'Ordered', isDone: true),
-                      _StepItem(title: 'Picked up', isDone: true),
-                      _StepItem(title: 'On the way', isActive: true),
-                      _StepItem(title: 'Arriving', isDone: false),
+                      _StepItem(
+                        title: 'Ordered',
+                        isDone: !isSearching,
+                        isActive: isSearching,
+                      ),
+                      _StepItem(
+                        title: 'Picked up',
+                        isDone: isPickedUp || isDelivered,
+                        isActive: isAssigned,
+                      ),
+                      _StepItem(
+                        title: 'On the way',
+                        isDone: isDelivered,
+                        isActive: isPickedUp,
+                      ),
+                      _StepItem(
+                        title: 'Confirm',
+                        isDone: false,
+                        isActive: isDelivered,
+                      ),
                     ],
                   ),
                 ],
@@ -176,19 +216,6 @@ class LiveTrackingScreen extends ConsumerWidget {
                         ),
                       ),
 
-                      // Quick Chat Button
-                      IconButton(
-                        style: IconButton.styleFrom(
-                          backgroundColor: AppColors.parcelBg,
-                          padding: const EdgeInsets.all(12),
-                        ),
-                        icon: const Icon(Icons.chat_bubble_outline,
-                            color: AppColors.primary),
-                        onPressed: () {},
-                      ),
-
-                      const SizedBox(width: 8),
-
                       // Quick Call Button
                       IconButton(
                         style: IconButton.styleFrom(
@@ -196,28 +223,86 @@ class LiveTrackingScreen extends ConsumerWidget {
                           padding: const EdgeInsets.all(12),
                         ),
                         icon: const Icon(Icons.phone, color: Colors.white),
-                        onPressed: () {},
+                        onPressed: () {
+                          final phone = delivery?.assignedRiderPhone ??
+                              '+250788123456';
+                          PhoneHelper.makePhoneCall(context, phone);
+                        },
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 14),
 
-                  // Simulate Completion CTA Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                  // Dynamic Delivery Confirmation Banner & Action Button
+                  if (isDelivered) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.statusSuccessBg,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      onPressed: () => context.push('/order-completion'),
-                      child: Text('Complete Order',
-                          style: AppTypography.labelLarge(
-                              color: AppColors.primary)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle,
+                              color: AppColors.statusSuccess, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Rider completed delivery! Please confirm below.',
+                              style: AppTypography.bodySmall(
+                                  color: AppColors.statusSuccess),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.statusSuccess,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () async {
+                          final activeDelivery = deliveryState.activeDelivery;
+                          if (activeDelivery != null) {
+                            await ref
+                                .read(deliveryNotifierProvider.notifier)
+                                .clearActiveDelivery(activeDelivery.id);
+                          }
+                          if (context.mounted) {
+                            context.go('/customer');
+                          }
+                        },
+                        child: Text('Confirm Delivery & Complete',
+                            style: AppTypography.labelLarge(
+                                color: Colors.white)),
+                      ),
+                    ),
+                  ] else ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => context.push('/order-completion'),
+                        child: Text(
+                          isPickedUp
+                              ? 'Order In Transit...'
+                              : 'Confirm Delivery',
+                          style: AppTypography.labelLarge(
+                              color: AppColors.primary),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
