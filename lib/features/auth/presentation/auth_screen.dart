@@ -103,47 +103,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             children: [
               const SizedBox(height: 16),
 
-              // Top Header with Logo & Language Selector
+              // Top Header with Logo 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/logos/logo.png',
-                        width: 32,
-                        height: 32,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Icon(Icons.bolt, color: theme.colorScheme.primary),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'GezaYo',
-                        style: AppTypography.headlineMedium(
-                            color: theme.colorScheme.primary),
-                      ),
-                    ],
+                  Image.asset(
+                    'assets/logos/logo.png',
+                    width: 32,
+                    height: 32,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.bolt, color: theme.colorScheme.primary),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: theme.colorScheme.outline),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.language,
-                            size: 16, color: theme.colorScheme.onSurface),
-                        const SizedBox(width: 4),
-                        Text(
-                          authState.selectedLanguage,
-                          style: AppTypography.titleMedium(
-                              color: theme.colorScheme.onSurface),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'GezaYo',
+                    style: AppTypography.headlineMedium(
+                        color: theme.colorScheme.primary),
                   ),
                 ],
               ),

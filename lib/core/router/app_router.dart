@@ -91,7 +91,10 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/order-completion',
-      builder: (context, state) => const OrderCompletionScreen(),
+      builder: (context, state) {
+        final id = state.uri.queryParameters['id'];
+        return OrderCompletionScreen(deliveryId: id);
+      },
     ),
     GoRoute(
       path: '/rider',

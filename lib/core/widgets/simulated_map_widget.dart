@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-class SimulatedMapWidget extends StatelessWidget {
+class SimulatedMapWidget extends StatefulWidget {
   final List<LatLng> riderLocations;
   final bool showRiderPins;
   final bool showRadarScan;
@@ -12,6 +13,7 @@ class SimulatedMapWidget extends StatelessWidget {
   final String? centerLabel;
   final LatLng? pickupLocation;
   final LatLng? dropoffLocation;
+  final bool isLiveMoving;
 
   const SimulatedMapWidget({
     super.key,
@@ -22,7 +24,53 @@ class SimulatedMapWidget extends StatelessWidget {
     this.centerLabel,
     this.pickupLocation,
     this.dropoffLocation,
+    this.isLiveMoving = true,
   });
+
+  @override
+  State<SimulatedMapWidget> createState() => _SimulatedMapWidgetState();
+}
+
+class _SimulatedMapWidgetState extends State<SimulatedMapWidget> {
+  Timer? _animTimer;
+  double _progress = 0.2; // 0.0 to 1.0 along route
+  bool _forward = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isLiveMoving) {
+      _startRiderMovement();
+    }
+  }
+
+  void _startRiderMovement() {
+    _animTimer?.cancel();
+    _animTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_forward) {
+          _progress += 0.008;
+          if (_progress >= 0.85) _forward = false;
+        } else {
+          _progress -= 0.008;
+          if (_progress <= 0.15) _forward = true;
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _animTimer?.cancel();
+    super.dispose();
+  }
+
+  LatLng _interpolate(LatLng start, LatLng end, double fraction) {
+    final lat = start.latitude + (end.latitude - start.latitude) * fraction;
+    final lng = start.longitude + (end.longitude - start.longitude) * fraction;
+    return LatLng(lat, lng);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,18 +79,19 @@ class SimulatedMapWidget extends StatelessWidget {
     const defaultPickupLoc = LatLng(-1.9536, 30.0917); // Kimihurura
     const defaultDropoffLoc = LatLng(-1.9612, 30.1250); // Remera
 
-    final effectivePickup = pickupLocation ?? defaultPickupLoc;
-    final effectiveDropoff = dropoffLocation ?? defaultDropoffLoc;
-    final mapCenter = pickupLocation ?? kigaliCenter;
+    final effectivePickup = widget.pickupLocation ?? defaultPickupLoc;
+    final effectiveDropoff = widget.dropoffLocation ?? defaultDropoffLoc;
+    final mapCenter = widget.pickupLocation ?? kigaliCenter;
 
-    // Use passed riderLocations, or fallback to default coordinates if showRiderPins is true and riderLocations is empty
-    final effectiveRiders = riderLocations.isNotEmpty
-        ? riderLocations
-        : (showRiderPins
-            ? const [
-                LatLng(-1.9480, 30.0680),
-                LatLng(-1.9400, 30.0550),
-                LatLng(-1.9580, 30.0820),
+    // Calculate moving rider position along pickup -> dropoff polyline
+    final movingRiderPos = _interpolate(effectivePickup, effectiveDropoff, _progress);
+
+    final effectiveRiders = widget.riderLocations.isNotEmpty
+        ? widget.riderLocations
+        : (widget.showRiderPins
+            ? [
+                movingRiderPos,
+                const LatLng(-1.9400, 30.0550),
               ]
             : <LatLng>[]);
 
@@ -51,118 +100,117 @@ class SimulatedMapWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-            FlutterMap(
-              options: MapOptions(
-                initialCenter: mapCenter,
-                initialZoom: 13.5,
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: mapCenter,
+              initialZoom: 13.5,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.gezayo_app',
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.gezayo_app',
+              if (widget.showRoute)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: [
+                        mapCenter,
+                        effectivePickup,
+                        effectiveDropoff,
+                      ],
+                      strokeWidth: 5.0,
+                      color: AppColors.primary,
+                    ),
+                  ],
                 ),
-                if (showRoute)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: [
-                          mapCenter,
-                          effectivePickup,
-                          effectiveDropoff,
-                        ],
-                        strokeWidth: 5.0,
-                        color: AppColors.primary,
-                      ),
-                    ],
+              MarkerLayer(
+                markers: [
+                  // Pickup Marker
+                  Marker(
+                    key: ValueKey('pickup_${effectivePickup.latitude}_${effectivePickup.longitude}'),
+                    point: effectivePickup,
+                    width: 44,
+                    height: 44,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: AppColors.primary,
+                      size: 38,
+                    ),
                   ),
-                MarkerLayer(
-                  markers: [
-                    // Pickup Marker
+
+                  // Dropoff Marker
+                  if (widget.showRoute)
                     Marker(
-                      key: ValueKey('pickup_${effectivePickup.latitude}_${effectivePickup.longitude}'),
-                      point: effectivePickup,
+                      key: ValueKey('dropoff_${effectiveDropoff.latitude}_${effectiveDropoff.longitude}'),
+                      point: effectiveDropoff,
                       width: 44,
                       height: 44,
                       child: const Icon(
-                        Icons.location_on,
-                        color: AppColors.primary,
-                        size: 38,
+                        Icons.flag,
+                        color: Colors.redAccent,
+                        size: 32,
                       ),
                     ),
 
-                    // Dropoff Marker
-                    if (showRoute)
-                      Marker(
-                        key: ValueKey('dropoff_${effectiveDropoff.latitude}_${effectiveDropoff.longitude}'),
-                        point: effectiveDropoff,
-                        width: 44,
-                        height: 44,
+                  // Moving Rider Markers with explicit keys
+                  for (int i = 0; i < effectiveRiders.length; i++)
+                    Marker(
+                      key: ValueKey('rider_${i}_${effectiveRiders[i].latitude}_${effectiveRiders[i].longitude}'),
+                      point: effectiveRiders[i],
+                      width: 42,
+                      height: 42,
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: i == 0 ? AppColors.accentOrange : AppColors.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2)),
+                          ],
+                        ),
                         child: const Icon(
-                          Icons.flag,
-                          color: Colors.redAccent,
-                          size: 32,
+                          Icons.two_wheeler,
+                          color: Colors.white,
+                          size: 22,
                         ),
                       ),
+                    ),
+                ],
+              ),
+            ],
+          ),
 
-                    // Rider Markers with explicit keys to prevent mouse_tracker assertions on web
-                    for (int i = 0; i < effectiveRiders.length; i++)
-                      Marker(
-                        key: ValueKey('rider_${i}_${effectiveRiders[i].latitude}_${effectiveRiders[i].longitude}'),
-                        point: effectiveRiders[i],
-                        width: 36,
-                        height: 36,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black26, blurRadius: 4),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.two_wheeler,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
+          // Center Location Header Badge
+          if (widget.centerLabel != null)
+            Positioned(
+              top: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black12, blurRadius: 8),
                   ],
                 ),
-              ],
-            ),
-
-            // Center Location Header Badge
-            if (centerLabel != null)
-              Positioned(
-                top: 16,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black12, blurRadius: 8),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.my_location,
-                          size: 16, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        centerLabel!,
-                        style: AppTypography.titleMedium(
-                            color: AppColors.textPrimary),
-                      ),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.my_location,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.centerLabel!,
+                      style: AppTypography.titleMedium(
+                          color: AppColors.textPrimary),
+                    ),
+                  ],
                 ),
               ),
-          ],
-        ),
-      );
+            ),
+        ],
+      ),
+    );
   }
 }

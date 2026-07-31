@@ -23,7 +23,9 @@ class RatingStars extends StatelessWidget {
         final starNumber = index + 1;
         final isFilled = starNumber <= rating;
 
-        return GestureDetector(
+        return InkWell(
+          key: ValueKey('rating_star_$starNumber'),
+          borderRadius: BorderRadius.circular(20),
           onTap: onRatingChanged != null ? () => onRatingChanged!(starNumber) : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),

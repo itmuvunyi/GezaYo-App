@@ -7,6 +7,7 @@ enum DeliveryStatus {
   pickedUp,
   onTheWay,
   delivered,
+  completed,
   cancelled,
 }
 

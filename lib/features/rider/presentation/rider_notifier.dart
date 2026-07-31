@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -71,11 +72,21 @@ class RiderNotifier extends StateNotifier<RiderState> {
     _loadInitialState();
   }
 
-  Future<void> _loadInitialState() async {
-    state = state.copyWith(isLoading: true);
-    final isOnline = await _repository.getOnlineStatus();
+  StreamSubscription? _activeJobSubscription;
+  StreamSubscription? _txSubscription;
 
-    _firestoreService.getTransactionsStream('rider-1').listen((txs) {
+  @override
+  void dispose() {
+    _activeJobSubscription?.cancel();
+    _txSubscription?.cancel();
+    super.dispose();
+  }
+
+  void syncRiderTransactions(String riderUid) {
+    _txSubscription?.cancel();
+    _txSubscription = _firestoreService
+        .getTransactionsStream(riderUid)
+        .listen((txs) {
       double balance = 0.0;
       double todayEarned = 0.0;
       int jobsDoneCount = 0;
@@ -96,6 +107,25 @@ class RiderNotifier extends StateNotifier<RiderState> {
         isLoading: false,
       );
     });
+  }
+
+  void syncActiveRiderJob(String riderUid) {
+    _activeJobSubscription?.cancel();
+    _activeJobSubscription = _firestoreService
+        .getActiveRiderJobStream(riderUid)
+        .listen((activeJob) {
+      if (activeJob != null) {
+        state = state.copyWith(activeJobId: activeJob.id);
+      }
+    });
+  }
+
+  Future<void> _loadInitialState() async {
+    state = state.copyWith(isLoading: true);
+    final isOnline = await _repository.getOnlineStatus();
+
+    syncRiderTransactions('');
+    syncActiveRiderJob('');
 
     state = state.copyWith(
       isOnline: isOnline,
@@ -166,9 +196,12 @@ class RiderNotifier extends StateNotifier<RiderState> {
   /// Atomically accept a delivery job — checks if job is still available ('searching').
   /// Returns true if successfully accepted, false if already taken by another rider.
   Future<bool> acceptJob(String jobId, double fareRwf,
-      [String riderUid = '', String riderName = '', double riderRating = 5.0]) async {
+      [String riderUid = '',
+      String riderName = '',
+      double riderRating = 5.0,
+      String riderPhone = '']) async {
     final success = await _firestoreService.acceptJobAtomic(
-        jobId, riderUid, riderName, riderRating);
+        jobId, riderUid, riderName, riderRating, riderPhone);
 
     if (success) {
       state = state.copyWith(activeJobId: jobId);
@@ -195,35 +228,15 @@ class RiderNotifier extends StateNotifier<RiderState> {
     }
   }
 
-  /// Complete current delivery job — updates status to 'delivered' in Firestore,
-  /// removing it permanently from available jobs.
-  Future<void> completeCurrentJob([double fareRwf = 3500.0]) async {
+  /// Complete current delivery job — updates status to 'delivered' in Firestore (awaiting customer confirmation).
+  Future<void> completeCurrentJob([double fareRwf = 0.0]) async {
     final jobId = state.activeJobId;
     if (jobId != null && jobId.isNotEmpty) {
       await _firestoreService.completeJobByRider(jobId);
     }
 
-    final updatedBalance = state.totalBalanceRwf + fareRwf;
-    final updatedToday = state.earnedTodayRwf + fareRwf;
-    final updatedJobs = state.jobsDoneToday + 1;
-
-    final newTx = TransactionModel(
-      id: 'tx-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-      title: 'Delivery #${jobId ?? 'Unknown'}',
-      dateText: 'Just now',
-      amountRwf: fareRwf,
-      type: TransactionType.jobEarning,
-      status: TransactionStatus.completed,
-    );
-
-    await _firestoreService.addTransaction(newTx);
-
     state = state.copyWith(
-      totalBalanceRwf: updatedBalance,
-      earnedTodayRwf: updatedToday,
-      jobsDoneToday: updatedJobs,
       clearActiveJob: true,
-      transactions: [newTx, ...state.transactions],
     );
   }
 

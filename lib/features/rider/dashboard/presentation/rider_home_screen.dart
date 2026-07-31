@@ -23,6 +23,11 @@ class RiderHomeScreen extends ConsumerWidget {
     final riderUid = authState.user?.uid ?? '';
     final riderName = authState.user?.fullName ?? 'Rider';
 
+    if (riderUid.isNotEmpty) {
+      notifier.syncRiderTransactions(riderUid);
+      notifier.syncActiveRiderJob(riderUid);
+    }
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -147,7 +152,194 @@ class RiderHomeScreen extends ConsumerWidget {
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            const SizedBox(height: 20),
+
+            // Real-time Active Job In Progress Card (Restored from Firestore with full progress stepper)
+            StreamBuilder<DeliveryModel?>(
+              stream: firestoreService.getActiveRiderJobStream(riderUid),
+              builder: (context, activeSnap) {
+                final activeJob = activeSnap.data;
+                if (activeJob != null) {
+                  final isAssigned =
+                      activeJob.status == DeliveryStatus.assigned;
+                  final isPickedUp =
+                      activeJob.status == DeliveryStatus.pickedUp;
+                  final isDelivered =
+                      activeJob.status == DeliveryStatus.delivered;
+
+                  String statusBanner =
+                      'Navigating to pickup: ${activeJob.pickupAddress}';
+                  if (isPickedUp) {
+                    statusBanner =
+                        'Package picked up! En route to dropoff: ${activeJob.dropoffAddress}';
+                  } else if (isDelivered) {
+                    statusBanner =
+                        'Delivered! Awaiting customer confirmation to release earnings.';
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 3)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.directions_bike,
+                                    color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text('JOB IN PROGRESS',
+                                    style: AppTypography.labelLarge(
+                                        color: AppColors.primary)),
+                              ],
+                            ),
+                            if (isDelivered)
+                              const StatusBadge(
+                                text: 'Delivered',
+                                backgroundColor: AppColors.statusSuccessBg,
+                                textColor: AppColors.statusSuccess,
+                              )
+                            else if (isPickedUp)
+                              StatusBadge.onTheWay()
+                            else
+                              const StatusBadge(
+                                text: 'Assigned',
+                                backgroundColor: AppColors.primaryMint,
+                                textColor: AppColors.primary,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${activeJob.packageType} (${activeJob.weightClass})',
+                          style: AppTypography.titleLarge(
+                              color: theme.colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Fare: ${activeJob.estimatedFareRwf.toStringAsFixed(0)} RWF',
+                          style: AppTypography.titleMedium(
+                              color: AppColors.primary),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Dynamic Status Explanation Banner
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDelivered
+                                ? AppColors.statusSuccessBg
+                                : AppColors.primaryMint,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isDelivered
+                                    ? Icons.check_circle_outline
+                                    : Icons.navigation,
+                                size: 16,
+                                color: isDelivered
+                                    ? AppColors.statusSuccess
+                                    : AppColors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  statusBanner,
+                                  style: AppTypography.bodySmall(
+                                    color: isDelivered
+                                        ? AppColors.statusSuccess
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Horizontal 4-Step Stepper (Identical to Customer Dashboard)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const _StepItem(
+                              title: 'Ordered',
+                              isDone: true,
+                              isActive: false,
+                            ),
+                            _StepItem(
+                              title: 'Picked up',
+                              isDone: isPickedUp || isDelivered,
+                              isActive: isAssigned,
+                            ),
+                            _StepItem(
+                              title: 'On the way',
+                              isDone: isDelivered,
+                              isActive: isPickedUp,
+                            ),
+                            _StepItem(
+                              title: 'Confirm',
+                              isDone: false,
+                              isActive: isDelivered,
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.navigation,
+                                color: Colors.white, size: 18),
+                            label: const Text('Resume Navigation & Details',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
+                            onPressed: () {
+                              notifier.acceptJob(
+                                  activeJob.id, activeJob.estimatedFareRwf);
+                              if (isPickedUp) {
+                                context.push('/rider-navigation');
+                              } else {
+                                context.push('/job-details');
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
 
             // Section Header: Available Jobs
             Row(
@@ -213,14 +405,39 @@ class RiderHomeScreen extends ConsumerWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: _RiderJobCard(
+                        key: ValueKey('rider_job_${job.id}'),
                         job: job,
                         onAccept: () async {
+                          var finalRiderUid = riderUid;
+                          var finalRiderName = riderName;
+                          var finalRiderPhone = authState.user?.phoneNumber ?? '';
+                          var finalRiderRating = authState.user?.rating ?? 0.0;
+
+                          if (finalRiderUid.isEmpty) {
+                            final latestRider =
+                                await firestoreService.getRiderDetails('');
+                            if (latestRider != null) {
+                              finalRiderUid = latestRider['uid'] ??
+                                  latestRider['id'] ??
+                                  '';
+                              finalRiderName = latestRider['fullName'] ??
+                                  latestRider['name'] ??
+                                  'GezaYo Rider';
+                              finalRiderPhone = latestRider['phoneNumber'] ??
+                                  latestRider['phone'] ??
+                                  '';
+                              finalRiderRating =
+                                  (latestRider['rating'] ?? 5.0).toDouble();
+                            }
+                          }
+
                           final success = await notifier.acceptJob(
                             job.id,
                             job.estimatedFareRwf,
-                            riderUid,
-                            riderName,
-                            authState.user?.rating ?? 0.0,
+                            finalRiderUid,
+                            finalRiderName,
+                            finalRiderRating,
+                            finalRiderPhone,
                           );
                           if (success && context.mounted) {
                             context.push('/job-details');
@@ -261,6 +478,7 @@ class _RiderJobCard extends StatelessWidget {
   final VoidCallback onAccept;
 
   const _RiderJobCard({
+    super.key,
     required this.job,
     required this.onAccept,
   });
@@ -439,6 +657,57 @@ class _RiderJobCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StepItem extends StatelessWidget {
+  final String title;
+  final bool isDone;
+  final bool isActive;
+
+  const _StepItem({
+    required this.title,
+    this.isDone = false,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDone
+                ? AppColors.statusSuccess
+                : (isActive ? AppColors.primary : AppColors.cardBorder),
+          ),
+          child: isDone
+              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              : (isActive
+                  ? Center(
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    )
+                  : null),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: AppTypography.bodySmall(
+            color: isDone || isActive ? AppColors.primary : AppColors.textMuted,
+          ),
+        ),
+      ],
     );
   }
 }
