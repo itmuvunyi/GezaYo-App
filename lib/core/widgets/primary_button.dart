@@ -30,6 +30,7 @@ class PrimaryButton extends StatelessWidget {
       height: height,
       width: double.infinity,
       child: ElevatedButton(
+        key: key ?? ValueKey('primary_button_$text'),
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: textColor,
@@ -53,12 +54,16 @@ class PrimaryButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    text,
-                    style: AppTypography.labelLarge(color: textColor),
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: AppTypography.labelLarge(color: textColor),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                   if (icon != null) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Icon(icon, size: 20, color: textColor),
                   ],
                 ],

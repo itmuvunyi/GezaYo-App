@@ -33,170 +33,156 @@ class CustomerHomeScreen extends ConsumerWidget {
         onNotificationTap: () => context.push('/notifications'),
         onAvatarTap: () => context.push('/profile'),
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 2x2 Service Cards Grid
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.3,
               children: [
-                // 2x2 Service Cards Grid
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.3,
-                  children: [
-                    _ServiceCard(
-                      title: 'Food Delivery',
-                      icon: Icons.restaurant,
-                      bgColor: AppColors.foodBg,
-                      iconColor: AppColors.foodIcon,
-                      onTap: () => context.push('/create-delivery?type=Food'),
-                    ),
-                    _ServiceCard(
-                      title: 'Groceries',
-                      icon: Icons.shopping_cart,
-                      bgColor: AppColors.groceryBg,
-                      iconColor: AppColors.groceryIcon,
-                      onTap: () =>
-                          context.push('/create-delivery?type=Grocery'),
-                    ),
-                    _ServiceCard(
-                      title: 'Parcels',
-                      icon: Icons.inventory_2,
-                      bgColor: AppColors.parcelBg,
-                      iconColor: AppColors.parcelIcon,
-                      onTap: () => context.push('/create-delivery?type=Parcel'),
-                    ),
-                    _ServiceCard(
-                      title: 'Errands',
-                      icon: Icons.check_circle_outline,
-                      bgColor: AppColors.errandsBg,
-                      iconColor: AppColors.errandsIcon,
-                      onTap: () => context.push('/create-delivery?type=Other'),
-                    ),
-                  ],
+                _ServiceCard(
+                  title: 'Food Delivery',
+                  icon: Icons.restaurant,
+                  bgColor: AppColors.foodBg,
+                  iconColor: AppColors.foodIcon,
+                  onTap: () => context.push('/create-delivery?type=Food'),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Section Header: My Posted Jobs
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'My Posted Jobs',
-                      style: AppTypography.headlineMedium(
-                          color: theme.colorScheme.onSurface),
-                    ),
-                    Icon(Icons.history, color: theme.colorScheme.onSurfaceVariant),
-                  ],
+                _ServiceCard(
+                  title: 'Groceries',
+                  icon: Icons.shopping_cart,
+                  bgColor: AppColors.groceryBg,
+                  iconColor: AppColors.groceryIcon,
+                  onTap: () =>
+                      context.push('/create-delivery?type=Grocery'),
                 ),
-
-                const SizedBox(height: 12),
-
-                // Stream of Posted Jobs by this customer
-                StreamBuilder<List<DeliveryModel>>(
-                  stream: firestoreService
-                      .getCustomerDeliveriesStream(user?.phoneNumber),
-                  builder: (context, snapshot) {
-                    final jobs = snapshot.data ?? [];
-                    if (jobs.isEmpty) {
-                      return Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.local_shipping_outlined,
-                                color: AppColors.primary, size: 28),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'No posted jobs yet. Tap "Send Now" to post a delivery!',
-                                style: AppTypography.bodySmall(
-                                    color: theme.colorScheme.onSurfaceVariant),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return Column(
-                      children: jobs.take(5).map((job) {
-                        return _PostedJobCard(job: job);
-                      }).toList(),
-                    );
-                  },
+                _ServiceCard(
+                  title: 'Parcels',
+                  icon: Icons.inventory_2,
+                  bgColor: AppColors.parcelBg,
+                  iconColor: AppColors.parcelIcon,
+                  onTap: () => context.push('/create-delivery?type=Parcel'),
                 ),
-
-                const SizedBox(height: 24),
-
-                // Section Header: Nearby Riders
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Nearby Riders',
-                      style: AppTypography.headlineMedium(
-                          color: theme.colorScheme.onSurface),
-                    ),
-                    StatusBadge.live(),
-                  ],
+                _ServiceCard(
+                  title: 'Errands',
+                  icon: Icons.check_circle_outline,
+                  bgColor: AppColors.errandsBg,
+                  iconColor: AppColors.errandsIcon,
+                  onTap: () => context.push('/create-delivery?type=Other'),
                 ),
-
-                const SizedBox(height: 12),
-
-                // Map Container listening to real-time online riders
-                SizedBox(
-                  height: 240,
-                  child: StreamBuilder<List<UserModel>>(
-                    stream: firestoreService.getOnlineRidersStream(),
-                    builder: (context, snapshot) {
-                      final onlineRiders = snapshot.data ?? [];
-                      final riderCoords = onlineRiders
-                          .map((r) => LatLng(r.latitude, r.longitude))
-                          .toList();
-
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SimulatedMapWidget(
-                          riderLocations: riderCoords,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 100), // Space for floating button
               ],
             ),
-          ),
 
-          // Floating Action Button ("Send Now")
-          Positioned(
-            right: 20,
-            bottom: 84,
-            child: FloatingActionButton.extended(
-              backgroundColor: const Color(0xFFB45309), // Brown/Orange accent
-              onPressed: () => context.push('/create-delivery'),
-              icon: const Icon(Icons.send, color: Colors.white, size: 20),
-              label: Text(
-                'Send Now',
-                style: AppTypography.labelLarge(color: Colors.white),
+            const SizedBox(height: 24),
+
+            // Section Header: My Posted Jobs
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'My Posted Jobs',
+                  style: AppTypography.headlineMedium(
+                      color: theme.colorScheme.onSurface),
+                ),
+                Icon(Icons.history, color: theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Stream of Posted Jobs by this customer
+            StreamBuilder<List<DeliveryModel>>(
+              stream: firestoreService.getCustomerDeliveriesStream(
+                user?.phoneNumber,
+                user?.uid,
+              ),
+              builder: (context, snapshot) {
+                final jobs = snapshot.data ?? [];
+                if (jobs.isEmpty) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_shipping_outlined,
+                            color: AppColors.primary, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No posted jobs yet. Select a service above to post a delivery!',
+                            style: AppTypography.bodySmall(
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: jobs.take(5).map((job) {
+                    return _PostedJobCard(
+                      key: ValueKey('posted_job_${job.id}'),
+                      job: job,
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // Section Header: Nearby Riders
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Nearby Riders',
+                  style: AppTypography.headlineMedium(
+                      color: theme.colorScheme.onSurface),
+                ),
+                StatusBadge.live(),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Map Container listening to real-time online riders
+            SizedBox(
+              height: 240,
+              child: StreamBuilder<List<UserModel>>(
+                stream: firestoreService.getOnlineRidersStream(),
+                builder: (context, snapshot) {
+                  final onlineRiders = snapshot.data ?? [];
+                  final riderCoords = onlineRiders
+                      .map((r) => LatLng(r.latitude, r.longitude))
+                      .toList();
+
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SimulatedMapWidget(
+                      riderLocations: riderCoords,
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
       bottomNavigationBar: CustomBottomNav(
         currentIndex: 0,
@@ -212,7 +198,7 @@ class CustomerHomeScreen extends ConsumerWidget {
 class _PostedJobCard extends ConsumerWidget {
   final DeliveryModel job;
 
-  const _PostedJobCard({required this.job});
+  const _PostedJobCard({super.key, required this.job});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -230,7 +216,7 @@ class _PostedJobCard extends ConsumerWidget {
       case DeliveryStatus.assigned:
         statusBadge = const StatusBadge(
           text: 'Rider Assigned',
-          backgroundColor: AppColors.statusSuccessBg,
+          backgroundColor: AppColors.primaryMint,
           textColor: AppColors.primary,
         );
         break;
@@ -238,12 +224,19 @@ class _PostedJobCard extends ConsumerWidget {
         statusBadge = StatusBadge.onTheWay();
         break;
       case DeliveryStatus.delivered:
+        statusBadge = const StatusBadge(
+          text: 'Delivered',
+          backgroundColor: AppColors.statusSuccessBg,
+          textColor: AppColors.statusSuccess,
+        );
+        break;
+      case DeliveryStatus.completed:
         statusBadge = StatusBadge.completed();
         break;
       default:
         statusBadge = const StatusBadge(
           text: 'Pending',
-          backgroundColor: AppColors.statusSuccessBg,
+          backgroundColor: AppColors.primaryMint,
           textColor: AppColors.primary,
         );
     }
@@ -265,7 +258,6 @@ class _PostedJobCard extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -274,97 +266,107 @@ class _PostedJobCard extends ConsumerWidget {
           BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
         ],
       ),
-      child: InkWell(
-        onTap: () {
-          ref.read(deliveryNotifierProvider.notifier).setActiveDelivery(job);
-          if (job.status == DeliveryStatus.searching) {
-            context.push('/rider-matching');
-          } else if (job.status == DeliveryStatus.delivered) {
-            context.push('/order-completion');
-          } else {
-            context.push('/live-tracking');
-          }
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row: Job ID, Package Type, Status Badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          key: ValueKey('job_inkwell_${job.id}'),
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            ref.read(deliveryNotifierProvider.notifier).setActiveDelivery(job);
+            if (job.status == DeliveryStatus.searching) {
+              context.push('/rider-matching');
+            } else if (job.status == DeliveryStatus.delivered ||
+                job.status == DeliveryStatus.completed) {
+              context.push('/order-completion');
+            } else {
+              context.push('/live-tracking');
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top Row: Job ID, Package Type, Status Badge
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(packageIcon, size: 20, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${job.packageType} #${job.id}',
+                          style: AppTypography.titleLarge(
+                              color: theme.colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                    statusBadge,
+                  ],
+                ),
+
+                const Divider(height: 20),
+
+                // Route: Pickup -> Dropoff
                 Row(
                   children: [
-                    Icon(packageIcon, size: 20, color: AppColors.primary),
+                    const Icon(Icons.radio_button_checked,
+                        color: AppColors.statusSuccess, size: 16),
                     const SizedBox(width: 8),
-                    Text(
-                      '${job.packageType} #${job.id}',
-                      style: AppTypography.titleLarge(
-                          color: theme.colorScheme.onSurface),
+                    Expanded(
+                      child: Text(
+                        job.pickupAddress,
+                        style: AppTypography.bodySmall(
+                            color: theme.colorScheme.onSurface),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
-                statusBadge,
-              ],
-            ),
-
-            const Divider(height: 20),
-
-            // Route: Pickup -> Dropoff
-            Row(
-              children: [
-                const Icon(Icons.radio_button_checked,
-                    color: AppColors.statusSuccess, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    job.pickupAddress,
-                    style: AppTypography.bodySmall(
-                        color: theme.colorScheme.onSurface),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.location_on,
-                    color: AppColors.accentOrange, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    job.dropoffAddress,
-                    style: AppTypography.bodySmall(
-                        color: theme.colorScheme.onSurface),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Bottom Row: Price & Action CTA
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${job.estimatedFareRwf.toStringAsFixed(0)} RWF',
-                  style: AppTypography.titleMedium(color: AppColors.primary),
-                ),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    Text(
-                      'View Details',
-                      style: AppTypography.labelLarge(color: AppColors.primary),
+                    const Icon(Icons.location_on,
+                        color: AppColors.accentOrange, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        job.dropoffAddress,
+                        style: AppTypography.bodySmall(
+                            color: theme.colorScheme.onSurface),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const Icon(Icons.chevron_right,
-                        color: AppColors.primary, size: 18),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Bottom Row: Price & Action CTA
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${job.estimatedFareRwf.toStringAsFixed(0)} RWF',
+                      style: AppTypography.titleMedium(color: AppColors.primary),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          'View Details',
+                          style: AppTypography.labelLarge(color: AppColors.primary),
+                        ),
+                        const Icon(Icons.chevron_right,
+                            color: AppColors.primary, size: 18),
+                      ],
+                    ),
                   ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -388,25 +390,34 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: bgColor,
+    return Container(
+      key: ValueKey('service_card_$title'),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: iconColor.withValues(alpha: 0.2)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          key: ValueKey('service_inkwell_$title'),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: iconColor.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 36, color: iconColor),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: AppTypography.titleLarge(color: iconColor),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 36, color: iconColor),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: AppTypography.titleLarge(color: iconColor),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

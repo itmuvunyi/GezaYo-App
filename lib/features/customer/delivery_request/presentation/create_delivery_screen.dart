@@ -124,6 +124,7 @@ class _CreateDeliveryScreenState
   Future<void> _submitRequest() async {
     final authState = ref.read(authNotifierProvider);
     final customerUid = authState.user?.uid ?? 'usr-customer-101';
+    final customerPhone = authState.user?.phoneNumber ?? '';
     final offerFare = double.tryParse(_fareController.text.trim()) ?? 2500.0;
 
     if (_pickupController.text.trim().isEmpty ||
@@ -144,6 +145,7 @@ class _CreateDeliveryScreenState
       instructions: _instructionsController.text.trim(),
       estimatedFare: offerFare,
       customerUid: customerUid,
+      customerPhone: customerPhone,
     );
 
     if (mounted) {

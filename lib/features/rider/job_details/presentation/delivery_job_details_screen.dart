@@ -8,6 +8,7 @@ import '../../../../core/utils/phone_helper.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/secondary_button.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
+import '../../../auth/domain/user_model.dart';
 import '../../../customer/domain/delivery_model.dart';
 import '../../presentation/rider_notifier.dart';
 
@@ -86,331 +87,370 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                     (Match m) => '${m[1]},',
                   );
 
-          return Column(
-            children: [
-              // Floating Top Status Header Banner
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                color: const Color(0xFF1E293B),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.check_circle_outline,
-                        color: AppColors.statusSuccess, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      job.status == DeliveryStatus.assigned
-                          ? 'Navigating to pickup...'
-                          : 'Status: ${job.status.name.toUpperCase()}',
-                      style: AppTypography.titleMedium(color: Colors.white),
+          final defaultPhone = (job.customerPhone != null && job.customerPhone!.isNotEmpty)
+              ? job.customerPhone!
+              : '+250788123456';
+
+          return FutureBuilder<UserModel?>(
+            future: firestoreService.getUser(job.customerUid),
+            builder: (context, userSnap) {
+              final customerUser = userSnap.data;
+              final customerPhone = (customerUser?.phoneNumber != null &&
+                      customerUser!.phoneNumber.isNotEmpty)
+                  ? customerUser.phoneNumber
+                  : defaultPhone;
+              final customerName = (customerUser?.fullName != null &&
+                      customerUser!.fullName.isNotEmpty)
+                  ? customerUser.fullName
+                  : (job.customerUid.isNotEmpty
+                      ? 'Customer #${job.customerUid.substring(0, job.customerUid.length > 8 ? 8 : job.customerUid.length)}'
+                      : 'GezaYo Customer');
+
+              return Column(
+                children: [
+                  // Floating Top Status Header Banner
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    color: const Color(0xFF1E293B),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_outline,
+                            color: AppColors.statusSuccess, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          job.status == DeliveryStatus.assigned
+                              ? 'Navigating to pickup...'
+                              : 'Status: ${job.status.name.toUpperCase()}',
+                          style: AppTypography.titleMedium(color: Colors.white),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Route Map Box
-                      SizedBox(
-                        height: 140,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: const SimulatedMapWidget(showRoute: true),
-                        ),
-                      ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Route Map Box
+                          SizedBox(
+                            height: 140,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: const SimulatedMapWidget(showRoute: true),
+                            ),
+                          ),
 
-                      const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                      // Customer Details Card
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
+                          // Customer Details Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
                               children: [
-                                const CircleAvatar(
-                                  radius: 24,
-                                  backgroundColor: AppColors.primaryMint,
-                                  child: Icon(Icons.person,
-                                      color: AppColors.primary),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        job.customerUid.isNotEmpty
-                                            ? 'Customer #${job.customerUid.substring(0, job.customerUid.length > 8 ? 8 : job.customerUid.length)}'
-                                            : 'GezaYo Customer',
-                                        style: AppTypography.titleLarge(
-                                            color: theme.colorScheme.onSurface),
-                                      ),
-                                      Row(
+                                Row(
+                                  children: [
+                                    const CircleAvatar(
+                                      radius: 24,
+                                      backgroundColor: AppColors.primaryMint,
+                                      child: Icon(Icons.person,
+                                          color: AppColors.primary),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.star,
-                                              size: 14, color: Colors.amber),
-                                          const SizedBox(width: 4),
-                                          Text('4.9 Rating',
-                                              style: AppTypography.bodySmall(
-                                                  color: theme.colorScheme
-                                                      .onSurfaceVariant)),
+                                          Text(
+                                            customerName,
+                                            style: AppTypography.titleLarge(
+                                                color: theme.colorScheme.onSurface),
+                                          ),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.star,
+                                                  size: 14, color: Colors.amber),
+                                              const SizedBox(width: 4),
+                                              Text('4.9 Rating',
+                                                  style: AppTypography.bodySmall(
+                                                      color: theme.colorScheme
+                                                          .onSurfaceVariant)),
+                                              const SizedBox(width: 8),
+                                              Text('•',
+                                                  style: AppTypography.bodySmall(
+                                                      color: theme.colorScheme
+                                                          .onSurfaceVariant)),
+                                              const SizedBox(width: 8),
+                                              const Icon(Icons.phone,
+                                                  size: 12, color: AppColors.primary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                customerPhone,
+                                                style: AppTypography.bodySmall(
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant),
+                                              ),
+                                            ],
+                                          ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: AppColors.statusSuccessBg,
-                                    padding: const EdgeInsets.all(10),
-                                  ),
-                                  icon: const Icon(Icons.phone,
-                                      color: AppColors.primary),
-                                  onPressed: () => PhoneHelper.makePhoneCall(
-                                      context, '+250788654321'),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 24),
-                            Row(
-                              children: [
-                                const Icon(Icons.circle,
-                                    color: AppColors.accentOrange, size: 12),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('PICKUP',
-                                          style: AppTypography.labelMedium(
-                                              color: AppColors.accentOrange)),
-                                      Text(job.pickupAddress,
-                                          style: AppTypography.titleMedium(
-                                              color:
-                                                  theme.colorScheme.onSurface)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.only(left: 5),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: SizedBox(
-                                  height: 16,
-                                  child: VerticalDivider(
-                                      thickness: 1.5,
-                                      color: AppColors.cardBorder),
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                const Icon(Icons.circle,
-                                    color: AppColors.statusSuccess, size: 12),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text('DROP-OFF',
-                                          style: AppTypography.labelMedium(
-                                              color: AppColors.statusSuccess)),
-                                      Text(job.dropoffAddress,
-                                          style: AppTypography.titleMedium(
-                                              color:
-                                                  theme.colorScheme.onSurface)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // PACKAGE DETAILS Card
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('PACKAGE DETAILS',
-                                style: AppTypography.labelMedium(
-                                    color: theme.colorScheme.onSurfaceVariant)),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.parcelBg,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.inventory_2_outlined,
-                                      color: AppColors.primary),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        'Type: ${job.packageType.toUpperCase()}',
-                                        style: AppTypography.titleLarge(
-                                            color:
-                                                theme.colorScheme.onSurface)),
-                                    Text('Weight: ${job.weightClass}',
-                                        style: AppTypography.bodySmall(
-                                            color: theme
-                                                .colorScheme.onSurfaceVariant)),
+                                    ),
+                                    IconButton(
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: AppColors.statusSuccessBg,
+                                        padding: const EdgeInsets.all(10),
+                                      ),
+                                      icon: const Icon(Icons.phone,
+                                          color: AppColors.primary),
+                                      onPressed: () => PhoneHelper.makePhoneCall(
+                                          context, customerPhone),
+                                    ),
                                   ],
                                 ),
-                              ],
-                            ),
-                            if (job.instructions.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: theme
-                                      .colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
+                                const Divider(height: 24),
+                                Row(
                                   children: [
-                                    const Icon(Icons.info_outline,
-                                        color: AppColors.accentOrange,
-                                        size: 18),
-                                    const SizedBox(width: 8),
+                                    const Icon(Icons.circle,
+                                        color: AppColors.accentOrange, size: 12),
+                                    const SizedBox(width: 12),
                                     Expanded(
-                                      child: Text(
-                                        '"${job.instructions}"',
-                                        style: AppTypography.bodySmall(
-                                            color: theme.colorScheme.onSurface),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('PICKUP',
+                                              style: AppTypography.labelMedium(
+                                                  color: AppColors.accentOrange)),
+                                          Text(job.pickupAddress,
+                                              style: AppTypography.titleMedium(
+                                                  color:
+                                                      theme.colorScheme.onSurface)),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // PAYMENT BREAKDOWN Card
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('PAYMENT BREAKDOWN',
-                                style: AppTypography.labelMedium(
-                                    color: theme.colorScheme.onSurfaceVariant)),
-                            const SizedBox(height: 12),
-                            _FareRow(
-                                label: 'Offered Fare',
-                                value: 'RWF $fareFormatted'),
-                            const Divider(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 5),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: SizedBox(
+                                      height: 16,
+                                      child: VerticalDivider(
+                                          thickness: 1.5,
+                                          color: AppColors.cardBorder),
+                                    ),
+                                  ),
+                                ),
+                                Row(
                                   children: [
-                                    Text('Total Earnings',
-                                        style: AppTypography.headlineMedium(
-                                            color:
-                                                theme.colorScheme.onSurface)),
-                                    Text('UPON DELIVERY',
-                                        style: AppTypography.labelMedium(
-                                            color: AppColors.statusSuccess)),
+                                    const Icon(Icons.circle,
+                                        color: AppColors.statusSuccess, size: 12),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('DROP-OFF',
+                                              style: AppTypography.labelMedium(
+                                                  color: AppColors.statusSuccess)),
+                                          Text(job.dropoffAddress,
+                                              style: AppTypography.titleMedium(
+                                                  color:
+                                                      theme.colorScheme.onSurface)),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
-                                Text('RWF $fareFormatted',
-                                    style: AppTypography.headlineLarge(
-                                        color: AppColors.primary)),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
 
-                      const SizedBox(height: 24),
-                    ],
+                          const SizedBox(height: 16),
+
+                          // PACKAGE DETAILS Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('PACKAGE DETAILS',
+                                    style: AppTypography.labelMedium(
+                                        color: theme.colorScheme.onSurfaceVariant)),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.parcelBg,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.inventory_2_outlined,
+                                          color: AppColors.primary),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                            'Type: ${job.packageType.toUpperCase()}',
+                                            style: AppTypography.titleLarge(
+                                                color:
+                                                    theme.colorScheme.onSurface)),
+                                        Text('Weight: ${job.weightClass}',
+                                            style: AppTypography.bodySmall(
+                                                color: theme
+                                                    .colorScheme.onSurfaceVariant)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                if (job.instructions.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: theme
+                                          .colorScheme.surfaceContainerHighest,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.info_outline,
+                                            color: AppColors.accentOrange,
+                                            size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '"${job.instructions}"',
+                                            style: AppTypography.bodySmall(
+                                                color: theme.colorScheme.onSurface),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // PAYMENT BREAKDOWN Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('PAYMENT BREAKDOWN',
+                                    style: AppTypography.labelMedium(
+                                        color: theme.colorScheme.onSurfaceVariant)),
+                                const SizedBox(height: 12),
+                                _FareRow(
+                                    label: 'Offered Fare',
+                                    value: 'RWF $fareFormatted'),
+                                const Divider(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Total Earnings',
+                                            style: AppTypography.headlineMedium(
+                                                color:
+                                                    theme.colorScheme.onSurface)),
+                                        Text('UPON DELIVERY',
+                                            style: AppTypography.labelMedium(
+                                                color: AppColors.statusSuccess)),
+                                      ],
+                                    ),
+                                    Text('RWF $fareFormatted',
+                                        style: AppTypography.headlineLarge(
+                                            color: AppColors.primary)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
-              // Bottom Action Bar Buttons
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  border: Border(
-                      top: BorderSide(
-                          color: theme.dividerColor.withValues(alpha: 0.3))),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: SecondaryButton(
-                        text: 'Cancel / Reject',
-                        icon: Icons.close,
-                        onPressed: () async {
-                          await notifier.cancelActiveJob();
-                          if (context.mounted) Navigator.of(context).pop();
-                        },
-                      ),
+                  // Bottom Action Bar Buttons
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      border: Border(
+                          top: BorderSide(
+                              color: theme.dividerColor.withValues(alpha: 0.3))),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: PrimaryButton(
-                        text: 'Navigate to Pickup',
-                        icon: Icons.send,
-                        onPressed: () {
-                          notifier.markPickedUp();
-                          context.push('/rider-navigation');
-                        },
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SecondaryButton(
+                            text: 'Cancel / Reject',
+                            icon: Icons.close,
+                            onPressed: () async {
+                              await notifier.cancelActiveJob();
+                              if (context.mounted) Navigator.of(context).pop();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: PrimaryButton(
+                            text: job.status == DeliveryStatus.pickedUp
+                                ? 'Resume Navigation to Dropoff'
+                                : (job.status == DeliveryStatus.delivered
+                                    ? 'Awaiting Confirmation'
+                                    : 'Navigate to Pickup'),
+                            icon: job.status == DeliveryStatus.pickedUp
+                                ? Icons.navigation
+                                : Icons.send,
+                            onPressed: () {
+                              context.push('/rider-navigation');
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

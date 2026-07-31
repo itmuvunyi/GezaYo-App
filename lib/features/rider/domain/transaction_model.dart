@@ -7,6 +7,7 @@ enum TransactionStatus { completed, processed, pending }
 
 class TransactionModel extends Equatable {
   final String id;
+  final String userId;
   final String title;
   final String dateText;
   final double amountRwf;
@@ -15,6 +16,7 @@ class TransactionModel extends Equatable {
 
   const TransactionModel({
     required this.id,
+    this.userId = '',
     required this.title,
     required this.dateText,
     required this.amountRwf,
@@ -27,6 +29,7 @@ class TransactionModel extends Equatable {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'userId': userId,
       'title': title,
       'dateText': dateText,
       'amountRwf': amountRwf,
@@ -38,6 +41,7 @@ class TransactionModel extends Equatable {
   factory TransactionModel.fromMap(Map<String, dynamic> map) {
     return TransactionModel(
       id: map['id'] ?? '',
+      userId: map['userId'] ?? '',
       title: map['title'] ?? '',
       dateText: map['dateText'] ?? '',
       amountRwf: (map['amountRwf'] ?? 0.0).toDouble(),
@@ -58,5 +62,5 @@ class TransactionModel extends Equatable {
       TransactionModel.fromMap(json.decode(source));
 
   @override
-  List<Object?> get props => [id, title, dateText, amountRwf, type, status];
+  List<Object?> get props => [id, userId, title, dateText, amountRwf, type, status];
 }

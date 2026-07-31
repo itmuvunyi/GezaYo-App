@@ -77,6 +77,30 @@ class FirestoreService {
     return null;
   }
 
+  Future<UserModel?> getUserByPhone(String phone) async {
+    try {
+      if (_usersCol != null && phone.isNotEmpty) {
+        final snap =
+            await _usersCol!.where('phoneNumber', isEqualTo: phone).limit(1).get();
+        if (snap.docs.isNotEmpty) {
+          return UserModel.fromMap(snap.docs.first.data());
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestore getUserByPhone error: $e');
+    }
+
+    final localUsers = _localDb.getUsers();
+    final match = localUsers.firstWhere(
+      (u) => u['phoneNumber'] == phone,
+      orElse: () => {},
+    );
+    if (match.isNotEmpty) {
+      return UserModel.fromMap(match);
+    }
+    return null;
+  }
+
   Future<void> updateOnlineStatus(String uid, bool isOnline) async {
     try {
       if (_usersCol != null) {
@@ -185,7 +209,8 @@ class FirestoreService {
 
   /// Atomically accept a job — prevents double-acceptance by checking if status is still 'searching'
   Future<bool> acceptJobAtomic(
-      String jobId, String riderUid, String riderName, double riderRating) async {
+      String jobId, String riderUid, String riderName, double riderRating,
+      [String riderPhone = '']) async {
     try {
       if (_deliveriesCol != null) {
         final docRef = _deliveriesCol!.doc(jobId);
@@ -202,6 +227,7 @@ class FirestoreService {
           'status': 'assigned',
           'assignedRiderUid': riderUid,
           'assignedRiderName': riderName,
+          'assignedRiderPhone': riderPhone,
           'assignedRiderRating': riderRating,
           'acceptedAt': DateTime.now().toIso8601String(),
         });
@@ -229,7 +255,7 @@ class FirestoreService {
     }
   }
 
-  /// Complete a delivery job — updates status to 'delivered' so it is removed from available dashboard
+  /// Complete a delivery job — updates status to 'delivered' (awaiting customer confirmation)
   Future<void> completeJobByRider(String jobId) async {
     try {
       if (_deliveriesCol != null && jobId.isNotEmpty) {
@@ -240,6 +266,40 @@ class FirestoreService {
       }
     } catch (e) {
       debugPrint('Firestore completeJobByRider error: $e');
+    }
+  }
+
+  /// Customer confirms order receipt — updates status to 'completed' and credits rider earnings in Firestore
+  Future<void> confirmDeliveryByCustomer(String deliveryId) async {
+    try {
+      if (_deliveriesCol != null && deliveryId.isNotEmpty) {
+        final doc = await _deliveriesCol!.doc(deliveryId).get();
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          final riderUid = data['assignedRiderUid'] ?? '';
+          final fare = (data['estimatedFareRwf'] ?? 0.0).toDouble();
+
+          await _deliveriesCol!.doc(deliveryId).update({
+            'status': 'completed',
+            'customerConfirmedAt': DateTime.now().toIso8601String(),
+          });
+
+          if (riderUid.toString().isNotEmpty && fare > 0) {
+            final tx = TransactionModel(
+              id: 'tx-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
+              userId: riderUid.toString(),
+              title: 'Delivery #${deliveryId.substring(0, deliveryId.length > 8 ? 8 : deliveryId.length)}',
+              dateText: 'Just now',
+              amountRwf: fare,
+              type: TransactionType.jobEarning,
+              status: TransactionStatus.completed,
+            );
+            await addTransaction(tx);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestore confirmDeliveryByCustomer error: $e');
     }
   }
 
@@ -276,16 +336,42 @@ class FirestoreService {
     return Stream.value(null);
   }
 
+  /// Real-time stream of active job assigned to rider (status == 'assigned' || 'pickedUp')
+  Stream<DeliveryModel?> getActiveRiderJobStream(String riderUid) {
+    if (_deliveriesCol != null) {
+      return _deliveriesCol!.snapshots().map((snap) {
+        final docs = snap.docs.map((doc) => DeliveryModel.fromMap(doc.data())).where((d) {
+          final matchesRider = riderUid.isEmpty || d.assignedRiderUid == riderUid;
+          final isActive = d.status == DeliveryStatus.assigned || d.status == DeliveryStatus.pickedUp;
+          return matchesRider && isActive;
+        }).toList();
+        docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return docs.isNotEmpty ? docs.first : null;
+      });
+    }
+    return Stream.value(null);
+  }
+
   /// Real-time stream of all deliveries created by customer.
-  Stream<List<DeliveryModel>> getCustomerDeliveriesStream([String? customerPhone]) {
+  Stream<List<DeliveryModel>> getCustomerDeliveriesStream([
+    String? customerPhone,
+    String? customerUid,
+  ]) {
     if (_deliveriesCol != null) {
       return _deliveriesCol!.snapshots().map((snap) {
         final list = snap.docs
             .map((doc) => DeliveryModel.fromMap(doc.data()))
-            .where((d) =>
-                customerPhone == null ||
-                customerPhone.isEmpty ||
-                d.customerPhone == customerPhone)
+            .where((d) {
+              final phoneMatch = customerPhone != null &&
+                  customerPhone.isNotEmpty &&
+                  d.customerPhone == customerPhone;
+              final uidMatch = customerUid != null &&
+                  customerUid.isNotEmpty &&
+                  d.customerUid == customerUid;
+              final noFilter = (customerPhone == null || customerPhone.isEmpty) &&
+                  (customerUid == null || customerUid.isEmpty);
+              return phoneMatch || uidMatch || noFilter;
+            })
             .toList();
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return list;
@@ -317,6 +403,7 @@ class FirestoreService {
       return _transactionsCol!.snapshots().map((snap) {
         return snap.docs
             .map((doc) => TransactionModel.fromMap(doc.data()))
+            .where((tx) => userId.isEmpty || tx.userId == userId)
             .toList();
       });
     }
@@ -326,10 +413,11 @@ class FirestoreService {
   Future<List<TransactionModel>> getTransactions(String userId) async {
     try {
       if (_transactionsCol != null) {
-        final snap = await _transactionsCol!.limit(20).get();
+        final snap = await _transactionsCol!.get();
         if (snap.docs.isNotEmpty) {
           return snap.docs
               .map((doc) => TransactionModel.fromMap(doc.data()))
+              .where((tx) => userId.isEmpty || tx.userId == userId)
               .toList();
         }
       }
@@ -339,7 +427,10 @@ class FirestoreService {
 
     final localTxs = _localDb.getTransactions();
     if (localTxs.isNotEmpty) {
-      return localTxs.map((m) => TransactionModel.fromMap(m)).toList();
+      return localTxs
+          .map((m) => TransactionModel.fromMap(m))
+          .where((tx) => userId.isEmpty || tx.userId == userId)
+          .toList();
     }
     return [];
   }
@@ -358,12 +449,88 @@ class FirestoreService {
   // --- NOTIFICATIONS STREAM ---
 
   Stream<List<Map<String, dynamic>>> getNotificationsStream() {
-    if (_notificationsCol != null) {
-      return _notificationsCol!.snapshots().map((snap) {
-        return snap.docs.map((doc) => doc.data()).toList();
+    if (_deliveriesCol != null) {
+      return _deliveriesCol!.snapshots().map((snap) {
+        final notifs = <Map<String, dynamic>>[];
+        for (final doc in snap.docs) {
+          final d = DeliveryModel.fromMap(doc.data());
+          if (d.status == DeliveryStatus.searching) {
+            notifs.add({
+              'id': 'notif_${d.id}_posted',
+              'title': 'Delivery Order Posted',
+              'subtitle': '${d.packageType} delivery request posted in Kigali',
+              'timeText': 'Just now',
+              'isUnread': true,
+              'type': 'delivery',
+              'route': '/live-tracking',
+            });
+          } else if (d.status == DeliveryStatus.assigned) {
+            notifs.add({
+              'id': 'notif_${d.id}_assigned',
+              'title': 'Rider Assigned',
+              'subtitle': '${d.assignedRiderName ?? "Rider"} accepted your ${d.packageType} delivery',
+              'timeText': '5 min ago',
+              'isUnread': true,
+              'type': 'delivery',
+              'route': '/live-tracking',
+            });
+          } else if (d.status == DeliveryStatus.pickedUp) {
+            notifs.add({
+              'id': 'notif_${d.id}_pickedup',
+              'title': 'Package Picked Up',
+              'subtitle': '${d.assignedRiderName ?? "Rider"} picked up package. En route to ${d.dropoffAddress}',
+              'timeText': '10 min ago',
+              'isUnread': false,
+              'type': 'delivery',
+              'route': '/live-tracking',
+            });
+          } else if (d.status == DeliveryStatus.delivered) {
+            notifs.add({
+              'id': 'notif_${d.id}_delivered',
+              'title': 'Package Delivered',
+              'subtitle': 'Delivery complete! Tap to confirm receipt and rate rider.',
+              'timeText': '15 min ago',
+              'isUnread': true,
+              'type': 'delivery',
+              'route': '/order-completion',
+            });
+          } else if (d.status == DeliveryStatus.completed) {
+            notifs.add({
+              'id': 'notif_${d.id}_completed',
+              'title': 'Order Completed',
+              'subtitle': 'Payment of ${d.estimatedFareRwf.toStringAsFixed(0)} RWF released to rider.',
+              'timeText': '1 hour ago',
+              'isUnread': false,
+              'type': 'transaction',
+              'route': '/order-completion',
+            });
+          }
+        }
+        return notifs;
       });
     }
-    return Stream.value([]);
+    return Stream.value([
+      {
+        'id': 'notif_welcome',
+        'title': 'Welcome to GezaYo!',
+        'subtitle': 'Fast, reliable delivery across Rwanda.',
+        'timeText': 'Today',
+        'isUnread': false,
+        'type': 'system',
+        'route': '/customer',
+      }
+    ]);
+  }
+
+  Future<void> addNotification(Map<String, dynamic> notif) async {
+    try {
+      if (_notificationsCol != null) {
+        final id = notif['id'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+        await _notificationsCol!.doc(id).set(notif);
+      }
+    } catch (e) {
+      debugPrint('Firestore addNotification error: $e');
+    }
   }
 
   // --- RIDERS COLLECTION SCHEMA & CRUD ---
@@ -400,6 +567,51 @@ class FirestoreService {
     } catch (e) {
       debugPrint('Firestore updateRiderOnlineStatus error: $e');
     }
+  }
+
+  /// Query real rider document from Firestore riders or users collection
+  Future<Map<String, dynamic>?> getRiderDetails(String riderUid) async {
+    try {
+      if (riderUid.isNotEmpty) {
+        if (_ridersCol != null) {
+          final doc = await _ridersCol!.doc(riderUid).get();
+          if (doc.exists && doc.data() != null) {
+            return doc.data()!;
+          }
+        }
+        if (_usersCol != null) {
+          final doc = await _usersCol!.doc(riderUid).get();
+          if (doc.exists && doc.data() != null) {
+            return doc.data()!;
+          }
+        }
+      }
+
+      // Fallback: fetch the latest registered rider from Firestore 'users' collection
+      if (_usersCol != null) {
+        final snap = await _usersCol!.where('role', isEqualTo: 'rider').limit(1).get();
+        if (snap.docs.isNotEmpty) {
+          return snap.docs.first.data();
+        }
+        final anyUserSnap = await _usersCol!.limit(10).get();
+        for (final userDoc in anyUserSnap.docs) {
+          final data = userDoc.data();
+          if (data['role'] == 'rider') {
+            return data;
+          }
+        }
+      }
+
+      if (_ridersCol != null) {
+        final snap = await _ridersCol!.limit(1).get();
+        if (snap.docs.isNotEmpty) {
+          return snap.docs.first.data();
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestore getRiderDetails error: $e');
+    }
+    return null;
   }
 }
 

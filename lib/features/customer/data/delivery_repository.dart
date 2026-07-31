@@ -150,7 +150,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<void> clearActiveDelivery(String deliveryId) async {
-    await _firestoreService.updateDelivery(deliveryId, {'status': 'delivered'});
-    await _apiService.updateDeliveryStatus(deliveryId, {'status': 'delivered'});
+    await _firestoreService.confirmDeliveryByCustomer(deliveryId);
+    await _apiService.updateDeliveryStatus(deliveryId, {'status': 'completed'});
   }
 }
