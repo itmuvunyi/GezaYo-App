@@ -42,14 +42,56 @@ class LiveTrackingScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Map View
-          const Positioned.fill(
-            child: SimulatedMapWidget(
-              showRoute: true,
-            ),
-          ),
+      body: delivery == null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_off_outlined,
+                        size: 64, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Active Delivery to Track',
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You do not have an active order in progress. Request a new delivery to view live GPS tracking.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => context.push('/create-delivery'),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Create New Delivery',
+                          style: TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Stack(
+              children: [
+                // Map View
+                const Positioned.fill(
+                  child: SimulatedMapWidget(
+                    showRoute: true,
+                  ),
+                ),
+
 
           // Floating ESTIMATED ARRIVAL Card Top
           Positioned(
@@ -92,10 +134,11 @@ class LiveTrackingScreen extends ConsumerWidget {
                               Text(
                                 isDelivered
                                     ? '0'
-                                    : '${delivery?.estimatedArrivalMins ?? 12}',
+                                    : '${delivery.estimatedArrivalMins}',
                                 style: AppTypography.displayMedium(
                                     color: theme.colorScheme.onSurface),
                               ),
+
                               const SizedBox(width: 4),
                               Text('mins',
                                   style: AppTypography.titleLarge(
@@ -194,23 +237,37 @@ class LiveTrackingScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              delivery?.assignedRiderName ?? 'Rider Accepted',
-                              style: AppTypography.titleLarge(
-                                  color: theme.colorScheme.onSurface),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.star,
-                                    color: Colors.amber, size: 16),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${delivery?.assignedRiderRating ?? 5.0}',
-                                  style: AppTypography.bodySmall(
-                                      color: AppColors.accentOrangeDark),
-                                ),
-                              ],
+                            Builder(
+                              builder: (context) {
+                                final riderName = delivery.assignedRiderName;
+                                final riderRating = delivery.assignedRiderRating;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (riderName != null && riderName.isNotEmpty)
+                                          ? riderName
+                                          : 'Rider Accepted',
+                                      style: AppTypography.titleLarge(
+                                          color: theme.colorScheme.onSurface),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.star,
+                                            color: Colors.amber, size: 16),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${riderRating > 0 ? riderRating : 5.0}',
+                                          style: AppTypography.bodySmall(
+                                              color: AppColors.accentOrangeDark),
+                                        ),
+
+                                      ],
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -224,11 +281,15 @@ class LiveTrackingScreen extends ConsumerWidget {
                         ),
                         icon: const Icon(Icons.phone, color: Colors.white),
                         onPressed: () {
-                          final phone = delivery?.assignedRiderPhone ??
-                              '+250788123456';
-                          PhoneHelper.makePhoneCall(context, phone);
+                          final phone = delivery.assignedRiderPhone;
+                          final validPhone = (phone != null && phone.isNotEmpty)
+                              ? phone
+                              : '+250788123456';
+                          PhoneHelper.makePhoneCall(context, validPhone);
                         },
                       ),
+
+
                     ],
                   ),
 

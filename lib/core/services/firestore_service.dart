@@ -147,11 +147,19 @@ class FirestoreService {
         final snap = await _deliveriesCol!
             .where('status',
                 whereIn: ['searching', 'assigned', 'pickedUp', 'onTheWay'])
-            .limit(1)
             .get();
 
         if (snap.docs.isNotEmpty) {
-          return DeliveryModel.fromMap(snap.docs.first.data());
+          final matches = snap.docs
+              .map((doc) => DeliveryModel.fromMap(doc.data()))
+              .where((d) =>
+                  userId.isEmpty ||
+                  d.customerUid == userId ||
+                  d.customerPhone == userId)
+              .toList();
+          if (matches.isNotEmpty) {
+            return matches.last;
+          }
         }
       }
     } catch (e) {
@@ -160,10 +168,20 @@ class FirestoreService {
 
     final localDeliveries = _localDb.getDeliveries();
     if (localDeliveries.isNotEmpty) {
-      return DeliveryModel.fromMap(localDeliveries.last);
+      final matches = localDeliveries
+          .map((m) => DeliveryModel.fromMap(m))
+          .where((d) =>
+              userId.isEmpty ||
+              d.customerUid == userId ||
+              d.customerPhone == userId)
+          .toList();
+      if (matches.isNotEmpty && matches.last.status != DeliveryStatus.delivered) {
+        return matches.last;
+      }
     }
     return null;
   }
+
 
   /// Atomically accept a job — prevents double-acceptance by checking if status is still 'searching'
   Future<bool> acceptJobAtomic(

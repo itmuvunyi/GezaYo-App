@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/services/backend_api_service.dart';
 import '../../../core/services/firestore_service.dart';
@@ -19,7 +20,8 @@ abstract class AuthRepository {
   Future<UserModel?> signUpWithEmail(
       String email, String password, String name, String role,
       [String phoneNumber = '']);
-  Future<UserModel?> signInWithGoogle();
+  Future<UserModel?> signInWithGoogle({String role = 'customer'});
+  Future<void> changePassword(String currentPassword, String newPassword);
   Future<void> logout();
   Future<UserModel?> switchRole(UserModel currentUser, String newRole);
   UserModel? getPersistedUser();
@@ -146,10 +148,48 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserModel?> signInWithGoogle() async {
+  Future<UserModel?> signInWithGoogle({String role = 'customer'}) async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser != null) {
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        final credential = fb.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        final userCredential =
+            await fb.FirebaseAuth.instance.signInWithCredential(credential);
+        final fbUser = userCredential.user;
+        if (fbUser != null) {
+          final existingUser = await _firestoreService.getUser(fbUser.uid);
+          final userRole =
+              (existingUser != null && existingUser.role.isNotEmpty)
+                  ? existingUser.role
+                  : role;
+          final user = UserModel(
+            uid: fbUser.uid,
+            fullName:
+                fbUser.displayName ?? googleUser.displayName ?? 'Google User',
+            email: fbUser.email ?? googleUser.email,
+            phoneNumber: existingUser?.phoneNumber ?? fbUser.phoneNumber ?? '',
+            role: userRole,
+            avatarUrl: fbUser.photoURL ?? googleUser.photoUrl ?? '',
+          );
+          await _firestoreService.saveUser(user);
+          await _storageService.setUserRole(user.role);
+          await _storageService.setAuthenticated(true);
+          return user;
+        }
+      }
+    } catch (e) {
+      debugPrint('Google Sign In error: $e');
+    }
+
     final response = await _apiService.signInWithGoogle();
     if (response.isSuccess && response.data != null) {
-      final user = UserModel.fromMap(response.data!);
+      final user = UserModel.fromMap(response.data!).copyWith(role: role);
       await _firestoreService.saveUser(user);
       await _storageService.setUserRole(user.role);
       await _storageService.setAuthenticated(true);
@@ -157,6 +197,46 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     return null;
   }
+
+  @override
+  Future<void> changePassword(
+      String currentPassword, String newPassword) async {
+    final user = fb.FirebaseAuth.instance.currentUser;
+    if (user != null && user.email != null && user.email!.isNotEmpty) {
+      try {
+        final cred = fb.EmailAuthProvider.credential(
+          email: user.email!,
+          password: currentPassword,
+        );
+        await user.reauthenticateWithCredential(cred);
+        await user.updatePassword(newPassword);
+        return;
+      } on fb.FirebaseAuthException catch (e) {
+        debugPrint('Change password FirebaseAuth error: ${e.code}');
+        switch (e.code) {
+          case 'wrong-password':
+          case 'invalid-credential':
+            throw Exception('The current password provided is incorrect.');
+          case 'weak-password':
+            throw Exception('The new password is too weak.');
+          case 'requires-recent-login':
+            throw Exception('Please re-log in before changing your password.');
+          default:
+            throw Exception(e.message ?? 'Failed to update password.');
+        }
+      } catch (e) {
+        throw Exception('Failed to update password: $e');
+      }
+    }
+
+    if (currentPassword.isEmpty) {
+      throw Exception('Current password cannot be empty.');
+    }
+    if (newPassword.length < 6) {
+      throw Exception('New password must be at least 6 characters long.');
+    }
+  }
+
 
   @override
   Future<void> logout() async {

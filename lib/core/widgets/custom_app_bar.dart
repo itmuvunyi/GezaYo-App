@@ -9,6 +9,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String userName;
   final bool showBackButton;
   final bool showNotification;
+  final bool hasUnreadNotifications;
   final Widget? trailing;
   final VoidCallback? onNotificationTap;
   final VoidCallback? onAvatarTap;
@@ -20,6 +21,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.userName = 'User',
     this.showBackButton = false,
     this.showNotification = true,
+    this.hasUnreadNotifications = false,
     this.trailing,
     this.onNotificationTap,
     this.onAvatarTap,
@@ -74,22 +76,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onNotificationTap ??
                       () => context.push('/settings/notifications'),
                 ),
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.statusSuccess,
-                      shape: BoxShape.circle,
+                if (hasUnreadNotifications)
+                  Positioned(
+                    right: 12,
+                    top: 12,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.statusSuccess,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
         ],
       ),
     );
   }
+
 }

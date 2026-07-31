@@ -69,6 +69,82 @@ class TranslationService {
       'Confirm Logout': 'Thibitisha Kuondoka',
       'Delete Account': 'Futa Akaunti',
     },
+    'Luganda': {
+      'GezaYo': 'GezaYo',
+      'Welcome Back': 'Tukwansanyiza',
+      'Create Your Account': 'Kola Akaunti Yiyo',
+      'Sign In': 'Ingira',
+      'Sign Up': 'Wewandiise',
+      'Food Delivery': 'Okutwala Ebyokulya',
+      'Groceries': 'Ebintu by\'omu dduuka',
+      'Parcels': 'Ebipfunyiko',
+      'Errands': 'Emirimu egy\'enjawulo',
+      'Nearby Riders': 'Abavuzi b\'eggaali eziri okumpi',
+      'Request Rider': 'Saba Omuvuzi',
+      'Notifications': 'Amawulire',
+      'Security & Privacy': 'Ebyokwerinda n\'Ekyama',
+      'Help Center': 'Kituo ky\'Okuyamba',
+      'Logout': 'Vaamu',
+      'Confirm Logout': 'Kakasa Okuvaamu',
+      'Delete Account': 'Ggyawo Akaunti',
+    },
+    'Español': {
+      'GezaYo': 'GezaYo',
+      'Welcome Back': 'Bienvenido de nuevo',
+      'Create Your Account': 'Crea tu cuenta',
+      'Sign In': 'Iniciar sesión',
+      'Sign Up': 'Registrarse',
+      'Food Delivery': 'Entrega de comida',
+      'Groceries': 'Comestibles',
+      'Parcels': 'Paquetes',
+      'Errands': 'Mandados',
+      'Nearby Riders': 'Repartidores cercanos',
+      'Request Rider': 'Solicitar repartidor',
+      'Notifications': 'Notificaciones',
+      'Security & Privacy': 'Seguridad y Privacidad',
+      'Help Center': 'Centro de Ayuda',
+      'Logout': 'Cerrar sesión',
+      'Confirm Logout': 'Confirmar cierre de sesión',
+      'Delete Account': 'Eliminar cuenta',
+    },
+    'Português': {
+      'GezaYo': 'GezaYo',
+      'Welcome Back': 'Bem-vindo de volta',
+      'Create Your Account': 'Crie sua conta',
+      'Sign In': 'Entrar',
+      'Sign Up': 'Cadastrar-se',
+      'Food Delivery': 'Entrega de comida',
+      'Groceries': 'Mantimentos',
+      'Parcels': 'Encomendas',
+      'Errands': 'Tarefas',
+      'Nearby Riders': 'Entregadores próximos',
+      'Request Rider': 'Solicitar entregador',
+      'Notifications': 'Notificações',
+      'Security & Privacy': 'Segurança e Privacidade',
+      'Help Center': 'Central de Ajuda',
+      'Logout': 'Sair',
+      'Confirm Logout': 'Confirmar saída',
+      'Delete Account': 'Excluir conta',
+    },
+    'Deutsch': {
+      'GezaYo': 'GezaYo',
+      'Welcome Back': 'Willkommen zurück',
+      'Create Your Account': 'Konto erstellen',
+      'Sign In': 'Anmelden',
+      'Sign Up': 'Registrieren',
+      'Food Delivery': 'Essenslieferung',
+      'Groceries': 'Lebensmittel',
+      'Parcels': 'Pakete',
+      'Errands': 'Besorgungen',
+      'Nearby Riders': 'Fahrer in der Nähe',
+      'Request Rider': 'Fahrer anfordern',
+      'Notifications': 'Benachrichtigungen',
+      'Security & Privacy': 'Sicherheit & Datenschutz',
+      'Help Center': 'Hilfe-Center',
+      'Logout': 'Abmelden',
+      'Confirm Logout': 'Abmeldung bestätigen',
+      'Delete Account': 'Konto löschen',
+    },
   };
 
   /// Translate text dynamically using MyMemory Translation API with local dictionary fallback
@@ -77,11 +153,11 @@ class TranslationService {
       return text;
     }
 
-    final cacheKey = '$targetLanguage:$text';
     if (_cache.containsKey(targetLanguage) &&
         _cache[targetLanguage]!.containsKey(text)) {
       return _cache[targetLanguage]![text]!;
     }
+
 
     // Check Local Dictionary first
     if (_localDictionary.containsKey(targetLanguage) &&
@@ -121,8 +197,17 @@ class TranslationService {
         return 'fr';
       case 'Kiswahili':
         return 'sw';
+      case 'Luganda':
+        return 'lg';
+      case 'Español':
+        return 'es';
+      case 'Português':
+        return 'pt';
+      case 'Deutsch':
+        return 'de';
       default:
         return 'en';
     }
   }
 }
+

@@ -98,10 +98,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle({String role = 'customer'}) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final user = await _repository.signInWithGoogle();
+      final user = await _repository.signInWithGoogle(role: role);
       if (user != null) {
         state = state.copyWith(user: user, isLoading: false);
         return true;
@@ -109,6 +109,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
           isLoading: false, errorMessage: 'Google sign in failed.');
       return false;
+    } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return false;
+    }
+  }
+
+  Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _repository.changePassword(currentPassword, newPassword);
+      state = state.copyWith(isLoading: false);
+      return true;
     } catch (e) {
       final msg = e.toString().replaceAll('Exception: ', '');
       state = state.copyWith(isLoading: false, errorMessage: msg);
@@ -133,3 +147,4 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(clearUser: true);
   }
 }
+

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+
 import '../../../core/services/firestore_service.dart';
 import '../domain/transaction_model.dart';
 import '../data/rider_repository.dart';
@@ -61,6 +63,7 @@ class RiderState {
 class RiderNotifier extends StateNotifier<RiderState> {
   final RiderRepository _repository;
   final FirestoreService _firestoreService;
+  StreamSubscription? _txSubscription;
 
   RiderNotifier({
     required RiderRepository repository,
@@ -71,11 +74,27 @@ class RiderNotifier extends StateNotifier<RiderState> {
     _loadInitialState();
   }
 
-  Future<void> _loadInitialState() async {
+  @override
+  void dispose() {
+    _txSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadInitialState([String riderUid = '']) async {
     state = state.copyWith(isLoading: true);
     final isOnline = await _repository.getOnlineStatus();
+    loadRiderData(riderUid.isNotEmpty ? riderUid : 'rider-1');
 
-    _firestoreService.getTransactionsStream('rider-1').listen((txs) {
+    state = state.copyWith(
+      isOnline: isOnline,
+      isLoading: false,
+    );
+  }
+
+  void loadRiderData(String riderUid) {
+    _txSubscription?.cancel();
+    _txSubscription =
+        _firestoreService.getTransactionsStream(riderUid).listen((txs) {
       double balance = 0.0;
       double todayEarned = 0.0;
       int jobsDoneCount = 0;
@@ -96,12 +115,8 @@ class RiderNotifier extends StateNotifier<RiderState> {
         isLoading: false,
       );
     });
-
-    state = state.copyWith(
-      isOnline: isOnline,
-      isLoading: false,
-    );
   }
+
 
   Future<void> toggleOnlineStatus([bool? newStatus, String riderUid = 'rider-1']) async {
     final nextStatus = newStatus ?? !state.isOnline;

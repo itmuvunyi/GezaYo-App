@@ -257,74 +257,90 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Bar Chart Visualization
-                  SizedBox(
-                    height: 150,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: 25,
-                        barTouchData: BarTouchData(enabled: true),
-                        titlesData: FlTitlesData(
-                          show: true,
-                          topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          leftTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                const days = [
-                                  'Mon',
-                                  'Tue',
-                                  'Wed',
-                                  'Thu',
-                                  'Fri',
-                                  'Sat',
-                                  'Sun'
-                                ];
-                                if (value.toInt() >= 0 &&
-                                    value.toInt() < days.length) {
-                                  final day = days[value.toInt()];
-                                  final isToday = day == 'Thu';
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      day,
-                                      style: TextStyle(
-                                        color: isToday
-                                            ? AppColors.primary
-                                            : AppColors.textMuted,
-                                        fontWeight: isToday
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
+                  // Dynamic Bar Chart Visualization based on real transactions
+                  Builder(
+                    builder: (context) {
+                      final dayEarnings = List<double>.filled(7, 0.0);
+                      final now = DateTime.now();
+                      final todayWeekdayIndex = (now.weekday - 1) % 7;
+
+                      for (final tx in riderState.transactions) {
+                        if (tx.isPositive) {
+                          dayEarnings[todayWeekdayIndex] += tx.amountRwf;
+                        }
+                      }
+
+                      double maxVal = dayEarnings.reduce((a, b) => a > b ? a : b);
+                      if (maxVal <= 0) maxVal = 1.0;
+
+                      return SizedBox(
+                        height: 150,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            maxY: 25,
+                            barTouchData: BarTouchData(enabled: true),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              leftTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    const days = [
+                                      'Mon',
+                                      'Tue',
+                                      'Wed',
+                                      'Thu',
+                                      'Fri',
+                                      'Sat',
+                                      'Sun'
+                                    ];
+                                    if (value.toInt() >= 0 &&
+                                        value.toInt() < days.length) {
+                                      final day = days[value.toInt()];
+                                      final isToday = value.toInt() == todayWeekdayIndex;
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          day,
+                                          style: TextStyle(
+                                            color: isToday
+                                                ? AppColors.primary
+                                                : AppColors.textMuted,
+                                            fontWeight: isToday
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return const Text('');
+                                  },
+                                ),
+                              ),
                             ),
+                            gridData: const FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            barGroups: List.generate(7, (i) {
+                              final height = dayEarnings[i] > 0
+                                  ? ((dayEarnings[i] / maxVal) * 20 + 5)
+                                  : 0.0;
+                              return _makeBarGroup(i, height,
+                                  isSelected: i == todayWeekdayIndex);
+                            }),
                           ),
                         ),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        barGroups: [
-                          _makeBarGroup(0, 0),
-                          _makeBarGroup(1, 0),
-                          _makeBarGroup(2, 0),
-                          _makeBarGroup(3, 0, isSelected: true),
-                          _makeBarGroup(4, 0),
-                          _makeBarGroup(5, 0),
-                          _makeBarGroup(6, 0),
-                        ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
+
 
                   const Divider(height: 24),
 

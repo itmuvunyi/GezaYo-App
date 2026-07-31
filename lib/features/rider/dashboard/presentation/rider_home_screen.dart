@@ -23,6 +23,11 @@ class RiderHomeScreen extends ConsumerWidget {
     final riderUid = authState.user?.uid ?? '';
     final riderName = authState.user?.fullName ?? 'Rider';
 
+    if (riderUid.isNotEmpty) {
+      notifier.loadRiderData(riderUid);
+    }
+
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(

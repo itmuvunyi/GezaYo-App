@@ -10,9 +10,14 @@ class LanguageScreen extends ConsumerWidget {
   final List<_LanguageItem> _languages = const [
     _LanguageItem(name: 'English', nativeName: 'English (US/UK)', code: 'en'),
     _LanguageItem(name: 'Kinyarwanda', nativeName: 'Ikinyarwanda', code: 'rw'),
-    _LanguageItem(name: 'Français', nativeName: 'French', code: 'fr'),
-    _LanguageItem(name: 'Kiswahili', nativeName: 'Swahili', code: 'sw'),
+    _LanguageItem(name: 'Français', nativeName: 'Français', code: 'fr'),
+    _LanguageItem(name: 'Kiswahili', nativeName: 'Kiswahili', code: 'sw'),
+    _LanguageItem(name: 'Luganda', nativeName: 'Oluganda', code: 'lg'),
+    _LanguageItem(name: 'Español', nativeName: 'Español', code: 'es'),
+    _LanguageItem(name: 'Português', nativeName: 'Português', code: 'pt'),
+    _LanguageItem(name: 'Deutsch', nativeName: 'Deutsch', code: 'de'),
   ];
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

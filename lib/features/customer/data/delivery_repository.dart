@@ -22,7 +22,7 @@ abstract class DeliveryRepository {
     String customerPhone = '',
   });
 
-  Future<DeliveryModel?> getActiveDelivery();
+  Future<DeliveryModel?> getActiveDelivery([String userId = '']);
   Future<List<RiderModel>> fetchNearbyRiders();
   Future<DeliveryModel?> assignRider(DeliveryModel current, RiderModel rider);
   Future<DeliveryModel?> addTip(DeliveryModel current, double tipRwf);
@@ -70,19 +70,23 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
   }
 
   @override
-  Future<DeliveryModel?> getActiveDelivery() async {
+  Future<DeliveryModel?> getActiveDelivery([String userId = '']) async {
     final firestoreActive =
-        await _firestoreService.getActiveDelivery('current-user');
+        await _firestoreService.getActiveDelivery(userId);
     if (firestoreActive != null) {
       return firestoreActive;
     }
 
     final response = await _apiService.getActiveDelivery();
     if (response.isSuccess && response.data != null) {
-      return DeliveryModel.fromMap(response.data!);
+      final model = DeliveryModel.fromMap(response.data!);
+      if (userId.isEmpty || model.customerUid == userId || model.customerPhone == userId) {
+        return model;
+      }
     }
     return null;
   }
+
 
   @override
   Future<List<RiderModel>> fetchNearbyRiders() async {

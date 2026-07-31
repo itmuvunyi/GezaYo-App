@@ -23,83 +23,169 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
     final newPassController = TextEditingController();
     final confirmPassController = TextEditingController();
 
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+    String? dialogError;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Change Password',
-          style: AppTypography.headlineMedium(
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppTextField(
-              label: 'Current Password',
-              hintText: '••••••••',
-              obscureText: true,
-              controller: currentPassController,
-            ),
-            const SizedBox(height: 12),
-            AppTextField(
-              label: 'New Password',
-              hintText: '••••••••',
-              obscureText: true,
-              controller: newPassController,
-            ),
-            const SizedBox(height: 12),
-            AppTextField(
-              label: 'Confirm New Password',
-              hintText: '••••••••',
-              obscureText: true,
-              controller: confirmPassController,
-            ),
-          ],
-        ),
-        actionsPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        actions: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(90, 44),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              'Cancel',
-              style: AppTypography.titleMedium(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              'Change Password',
+              style: AppTypography.headlineMedium(
                 color: theme.colorScheme.onSurface,
               ),
             ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(100, 44),
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppTextField(
+                    label: 'Current Password',
+                    hintText: '••••••••',
+                    obscureText: obscureCurrent,
+                    controller: currentPassController,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureCurrent ? Icons.visibility_off : Icons.visibility,
+                        color: AppColors.textMuted,
+                      ),
+                      onPressed: () => setDialogState(
+                          () => obscureCurrent = !obscureCurrent),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'New Password',
+                    hintText: '••••••••',
+                    obscureText: obscureNew,
+                    controller: newPassController,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureNew ? Icons.visibility_off : Icons.visibility,
+                        color: AppColors.textMuted,
+                      ),
+                      onPressed: () => setDialogState(
+                          () => obscureNew = !obscureNew),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Confirm New Password',
+                    hintText: '••••••••',
+                    obscureText: obscureConfirm,
+                    controller: confirmPassController,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureConfirm
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: AppColors.textMuted,
+                      ),
+                      onPressed: () => setDialogState(
+                          () => obscureConfirm = !obscureConfirm),
+                    ),
+                  ),
+                  if (dialogError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      dialogError!,
+                      style: AppTypography.bodySmall(color: AppColors.statusError),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            onPressed: () {
-              if (newPassController.text == confirmPassController.text &&
-                  newPassController.text.isNotEmpty) {
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Password updated successfully!')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('New passwords do not match.')),
-                );
-              }
-            },
-            child: const Text('Update',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+            actionsPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            actions: [
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(90, 44),
+                ),
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(
+                  'Cancel',
+                  style: AppTypography.titleMedium(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(100, 44),
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                ),
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final currentPass = currentPassController.text.trim();
+                        final newPass = newPassController.text.trim();
+                        final confirmPass = confirmPassController.text.trim();
+
+                        if (currentPass.isEmpty) {
+                          setDialogState(() => dialogError = 'Please enter your current password.');
+                          return;
+                        }
+                        if (newPass.length < 6) {
+                          setDialogState(() => dialogError = 'New password must be at least 6 characters.');
+                          return;
+                        }
+                        if (newPass != confirmPass) {
+                          setDialogState(() => dialogError = 'New passwords do not match.');
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isSubmitting = true;
+                          dialogError = null;
+                        });
+
+                        final success = await ref
+                            .read(authNotifierProvider.notifier)
+                            .changePassword(currentPass, newPass);
+
+                        if (mounted) {
+                          if (success) {
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Password updated successfully!'),
+                                backgroundColor: AppColors.statusSuccess,
+                              ),
+                            );
+                          } else {
+                            final authErr = ref.read(authNotifierProvider).errorMessage;
+                            setDialogState(() {
+                              isSubmitting = false;
+                              dialogError = authErr ?? 'Failed to update password.';
+                            });
+                          }
+                        }
+                      },
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Update',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
 
   void _showDeleteAccountDialog() {
     final theme = Theme.of(context);
@@ -147,7 +233,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             onPressed: () async {
               Navigator.of(ctx).pop();
               await ref.read(authNotifierProvider.notifier).logout();
-              if (context.mounted) context.go('/auth');
+              if (mounted) context.go('/auth');
             },
             child: const Text('Delete Permanently',
                 style: TextStyle(
@@ -157,6 +243,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

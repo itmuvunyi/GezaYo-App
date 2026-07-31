@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -38,6 +40,84 @@ class _CreateDeliveryScreenState
       final raw = widget.initialPackageType!;
       _selectedPackageType =
           raw[0].toUpperCase() + raw.substring(1).toLowerCase();
+    }
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    try {
+      if (kIsWeb) {
+        setState(() {
+          _pickupController.text = '24 KN 59 St, Nyarugenge, Kigali';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('GPS Location updated: Kigali CBD')),
+        );
+        return;
+      }
+
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Location services are disabled on this device.')),
+          );
+        }
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Location permissions are denied.')),
+            );
+          }
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text('Location permissions are permanently denied.')),
+          );
+        }
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      setState(() {
+        _pickupController.text =
+            'Current Location (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'GPS Location detected: (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})'),
+            backgroundColor: AppColors.statusSuccess,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Location fetch error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching GPS location: $e')),
+        );
+      }
     }
   }
 
@@ -139,12 +219,16 @@ class _CreateDeliveryScreenState
                                 label: 'Pickup Location',
                                 hintText: '24 KN 59 St, Kigali',
                                 controller: _pickupController,
-                                suffixIcon: const Icon(Icons.my_location,
-                                    color: AppColors.primary),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.my_location,
+                                      color: AppColors.primary),
+                                  onPressed: _fetchCurrentLocation,
+                                ),
                               ),
                             ),
                           ],
                         ),
+
 
                         const Padding(
                           padding: EdgeInsets.only(left: 8),

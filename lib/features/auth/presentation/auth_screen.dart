@@ -463,7 +463,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onPressed: () async {
                         final success = await ref
                             .read(authNotifierProvider.notifier)
-                            .signInWithGoogle();
+                            .signInWithGoogle(role: _selectedRole);
+
                         if (!context.mounted) return;
                         if (success) {
                           final user = ref.read(authNotifierProvider).user;
