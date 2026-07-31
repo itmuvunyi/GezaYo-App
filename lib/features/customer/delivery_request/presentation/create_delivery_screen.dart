@@ -1,15 +1,22 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
+
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/simulated_map_widget.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../rider/domain/transaction_model.dart';
 import '../../../auth/presentation/auth_notifier.dart';
 import '../../presentation/delivery_notifier.dart';
+
 
 class CreateDeliveryScreen extends ConsumerStatefulWidget {
   final String? initialPackageType;
@@ -21,11 +28,9 @@ class CreateDeliveryScreen extends ConsumerStatefulWidget {
       _CreateDeliveryScreenState();
 }
 
-class _CreateDeliveryScreenState
-    extends ConsumerState<CreateDeliveryScreen> {
+class _CreateDeliveryScreenState extends ConsumerState<CreateDeliveryScreen> {
   final _pickupController = TextEditingController(text: '');
-  final _dropoffController =
-      TextEditingController(text: '');
+  final _dropoffController = TextEditingController(text: '');
   final _instructionsController = TextEditingController();
   final _fareController = TextEditingController(text: '');
 
@@ -43,24 +48,39 @@ class _CreateDeliveryScreenState
     }
   }
 
+  Future<String> _reverseGeocode(double lat, double lng) async {
+    try {
+      final uri = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json');
+      final response = await http.get(uri, headers: {
+        'User-Agent': 'GezaYoApp/1.0'
+      }).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final displayName = data['display_name'] as String?;
+        if (displayName != null && displayName.isNotEmpty) {
+          final parts = displayName.split(',');
+          if (parts.length >= 3) {
+            return '${parts[0].trim()}, ${parts[1].trim()}, ${parts[2].trim()}';
+          }
+          return displayName;
+        }
+      }
+    } catch (e) {
+      debugPrint('Reverse geocode error: $e');
+    }
+    return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+  }
+
   Future<void> _fetchCurrentLocation() async {
     try {
-      if (kIsWeb) {
-        setState(() {
-          _pickupController.text = '24 KN 59 St, Nyarugenge, Kigali';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('GPS Location updated: Kigali CBD')),
-        );
-        return;
-      }
-
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Location services are disabled on this device.')),
+                content:
+                    Text('Location services are disabled on this device.')),
           );
         }
         return;
@@ -72,8 +92,7 @@ class _CreateDeliveryScreenState
         if (permission == LocationPermission.denied) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Location permissions are denied.')),
+              const SnackBar(content: Text('Location permissions are denied.')),
             );
           }
           return;
@@ -83,8 +102,7 @@ class _CreateDeliveryScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Location permissions are permanently denied.')),
+                content: Text('Location permissions are permanently denied.')),
           );
         }
         return;
@@ -97,16 +115,16 @@ class _CreateDeliveryScreenState
         ),
       );
 
-      setState(() {
-        _pickupController.text =
-            'Current Location (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})';
-      });
+      final address = await _reverseGeocode(pos.latitude, pos.longitude);
 
       if (mounted) {
+        setState(() {
+          _pickupController.text = address;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'GPS Location detected: (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})'),
+            content: Text('GPS Location detected: $address'),
             backgroundColor: AppColors.statusSuccess,
           ),
         );
@@ -148,10 +166,16 @@ class _CreateDeliveryScreenState
       customerPhone: customerPhone,
     );
 
+    ref.read(notificationNotifierProvider.notifier).notifyNewDelivery(
+          packageType: _selectedPackageType,
+          pickupAddress: _pickupController.text.trim(),
+        );
+
     if (mounted) {
       context.push('/rider-matching');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +223,104 @@ class _CreateDeliveryScreenState
 
                   const SizedBox(height: 20),
 
+                  // Customer Wallet Balance & Deposit Card
+                  Builder(
+                    builder: (context) {
+                      final authState = ref.watch(authNotifierProvider);
+                      final firestoreService = ref.watch(firestoreServiceProvider);
+                      final uid = authState.user?.uid ?? '';
+
+                      return StreamBuilder<List<TransactionModel>>(
+                        stream: uid.isNotEmpty
+                            ? firestoreService.getTransactionsStream(uid)
+                            : Stream.value([]),
+                        builder: (context, txSnap) {
+                          double customerBalance = 0.0;
+                          final txs = txSnap.data ?? [];
+                          for (final tx in txs) {
+                            if (tx.isPositive) {
+                              customerBalance += tx.amountRwf;
+                            } else {
+                              customerBalance -= tx.amountRwf;
+                            }
+                          }
+                          if (customerBalance < 0) customerBalance = 0.0;
+
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF046A38), Color(0xFF10B981)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x29046A38),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'AVAILABLE WALLET BALANCE',
+                                        style: AppTypography.labelMedium(
+                                            color: Colors.white70),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'RWF ${customerBalance.toStringAsFixed(0)}',
+                                        style: AppTypography.headlineLarge(
+                                            color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                InkWell(
+                                  onTap: () => context.push('/deposit'),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.add_circle_outline,
+                                            color: AppColors.primary, size: 18),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Deposit',
+                                          style: AppTypography.labelLarge(
+                                              color: AppColors.primary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+
                   // Locations Input Card
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -230,7 +352,6 @@ class _CreateDeliveryScreenState
                             ),
                           ],
                         ),
-
 
                         const Padding(
                           padding: EdgeInsets.only(left: 8),

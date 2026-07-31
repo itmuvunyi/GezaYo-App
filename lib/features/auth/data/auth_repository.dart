@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../core/services/storage_service.dart';
+
 import '../../../core/services/backend_api_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../domain/user_model.dart';
@@ -23,6 +25,7 @@ abstract class AuthRepository {
   Future<UserModel?> signInWithGoogle({String role = 'customer'});
   Future<void> changePassword(String currentPassword, String newPassword);
   Future<void> logout();
+  Future<void> deleteAccount(String uid);
   Future<UserModel?> switchRole(UserModel currentUser, String newRole);
   UserModel? getPersistedUser();
 }
@@ -150,6 +153,35 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserModel?> signInWithGoogle({String role = 'customer'}) async {
     try {
+      if (kIsWeb) {
+        final googleProvider = fb.GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+        final userCredential =
+            await fb.FirebaseAuth.instance.signInWithPopup(googleProvider);
+        final fbUser = userCredential.user;
+        if (fbUser != null) {
+          final existingUser = await _firestoreService.getUser(fbUser.uid);
+          final userRole =
+              (existingUser != null && existingUser.role.isNotEmpty)
+                  ? existingUser.role
+                  : role;
+          final user = UserModel(
+            uid: fbUser.uid,
+            fullName: fbUser.displayName ?? 'Google User',
+            email: fbUser.email ?? '',
+            phoneNumber: existingUser?.phoneNumber ?? fbUser.phoneNumber ?? '',
+            role: userRole,
+            avatarUrl: fbUser.photoURL ?? '',
+          );
+          await _firestoreService.saveUser(user);
+          await _storageService.setUserRole(user.role);
+          await _storageService.setAuthenticated(true);
+          return user;
+        }
+        return null;
+      }
+
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser != null) {
@@ -182,21 +214,21 @@ class AuthRepositoryImpl implements AuthRepository {
           await _storageService.setAuthenticated(true);
           return user;
         }
+      } else {
+        throw Exception('Google Sign-In was cancelled.');
       }
     } catch (e) {
       debugPrint('Google Sign In error: $e');
-    }
-
-    final response = await _apiService.signInWithGoogle();
-    if (response.isSuccess && response.data != null) {
-      final user = UserModel.fromMap(response.data!).copyWith(role: role);
-      await _firestoreService.saveUser(user);
-      await _storageService.setUserRole(user.role);
-      await _storageService.setAuthenticated(true);
-      return user;
+      final msg = e.toString().replaceAll("Exception: ", "");
+      if (msg.contains("popup_closed_by_user") || msg.contains("cancelled")) {
+        throw Exception('Google Sign-In was cancelled.');
+      }
+      throw Exception('Google Sign-In error: $msg');
     }
     return null;
   }
+
+
 
   @override
   Future<void> changePassword(
@@ -237,12 +269,22 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-
   @override
   Future<void> logout() async {
     try {
       await fb.FirebaseAuth.instance.signOut();
     } catch (_) {}
+    await _storageService.setAuthenticated(false);
+  }
+
+  @override
+  Future<void> deleteAccount(String uid) async {
+    await _firestoreService.deleteUserAccount(uid);
+    try {
+      await fb.FirebaseAuth.instance.currentUser?.delete();
+    } catch (e) {
+      debugPrint('FirebaseAuth delete currentUser error: $e');
+    }
     await _storageService.setAuthenticated(false);
   }
 
@@ -270,3 +312,4 @@ class AuthRepositoryImpl implements AuthRepository {
     );
   }
 }
+

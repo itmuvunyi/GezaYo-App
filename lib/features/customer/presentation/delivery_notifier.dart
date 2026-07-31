@@ -139,6 +139,26 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     }
   }
 
+  Future<void> loadActiveDeliveryForUser(String userId) async {
+    _deliverySubscription?.cancel();
+    if (userId.isEmpty) {
+      state = state.copyWith(clearActiveDelivery: true);
+      return;
+    }
+    final active = await _repository.getActiveDelivery(userId);
+    if (active != null && mounted) {
+      state = state.copyWith(activeDelivery: active);
+      listenToDelivery(active.id);
+    } else if (mounted) {
+      state = state.copyWith(clearActiveDelivery: true);
+    }
+  }
+
+  void resetState() {
+    _deliverySubscription?.cancel();
+    state = const DeliveryState();
+  }
+
   Future<void> clearActiveDelivery([String? deliveryId]) async {
     final id = deliveryId ?? state.activeDelivery?.id;
     if (id != null && id.isNotEmpty) {
@@ -152,3 +172,4 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     await clearActiveDelivery();
   }
 }
+

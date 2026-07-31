@@ -20,6 +20,8 @@ import '../../features/profile/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/security_screen.dart';
 import '../../features/profile/presentation/language_screen.dart';
 import '../../features/help/presentation/help_center_screen.dart';
+import '../../features/wallet/presentation/deposit_screen.dart';
+
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -35,7 +37,9 @@ final appRouter = GoRouter(
             loc == '/create-delivery' ||
             loc == '/rider-matching' ||
             loc == '/live-tracking' ||
-            loc == '/order-completion';
+            loc == '/order-completion' ||
+            loc == '/deposit';
+
 
         final isRiderRoute = loc == '/rider' ||
             loc == '/job-details' ||
@@ -146,6 +150,11 @@ final appRouter = GoRouter(
       path: '/help',
       builder: (context, state) => const HelpCenterScreen(),
     ),
+    GoRoute(
+      path: '/deposit',
+      builder: (context, state) => const DepositScreen(),
+    ),
+
   ],
   errorBuilder: (context, state) => Scaffold(
     body: Center(

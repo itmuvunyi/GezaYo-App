@@ -19,7 +19,6 @@ class FirestoreService {
   FirebaseFirestore? _firestore;
   CollectionReference<Map<String, dynamic>>? _usersCol;
   CollectionReference<Map<String, dynamic>>? _deliveriesCol;
-  CollectionReference<Map<String, dynamic>>? _ridersCol;
   CollectionReference<Map<String, dynamic>>? _transactionsCol;
   CollectionReference<Map<String, dynamic>>? _notificationsCol;
 
@@ -32,7 +31,6 @@ class FirestoreService {
       _firestore = FirebaseFirestore.instance;
       _usersCol = _firestore!.collection('users');
       _deliveriesCol = _firestore!.collection('deliveries');
-      _ridersCol = _firestore!.collection('riders');
       _transactionsCol = _firestore!.collection('transactions');
       _notificationsCol = _firestore!.collection('notifications');
     } catch (e) {
@@ -56,7 +54,7 @@ class FirestoreService {
 
   Future<UserModel?> getUser(String uid) async {
     try {
-      if (_usersCol != null) {
+      if (_usersCol != null && uid.isNotEmpty) {
         final doc = await _usersCol!.doc(uid).get();
         if (doc.exists && doc.data() != null) {
           return UserModel.fromMap(doc.data()!);
@@ -103,7 +101,7 @@ class FirestoreService {
 
   Future<void> updateOnlineStatus(String uid, bool isOnline) async {
     try {
-      if (_usersCol != null) {
+      if (_usersCol != null && uid.isNotEmpty) {
         await _usersCol!.doc(uid).update({'isOnline': isOnline});
       }
     } catch (e) {
@@ -121,15 +119,6 @@ class FirestoreService {
           'latitude': latitude,
           'longitude': longitude,
           'lastLocationUpdate': DateTime.now().toIso8601String(),
-        }, SetOptions(merge: true));
-      }
-      if (_ridersCol != null && uid.isNotEmpty) {
-        await _ridersCol!.doc(uid).set({
-          'uid': uid,
-          'currentLat': latitude,
-          'currentLng': longitude,
-          'isOnline': isOnline,
-          'updatedAt': DateTime.now().toIso8601String(),
         }, SetOptions(merge: true));
       }
     } catch (e) {
@@ -151,6 +140,39 @@ class FirestoreService {
     return Stream.value([]);
   }
 
+  /// Delete user account and erase all associated data across Firestore collections
+  Future<void> deleteUserAccount(String uid) async {
+    if (uid.isEmpty) return;
+    try {
+      if (_usersCol != null) {
+        await _usersCol!.doc(uid).delete();
+      }
+      if (_deliveriesCol != null) {
+        final custSnap =
+            await _deliveriesCol!.where('customerUid', isEqualTo: uid).get();
+        for (final doc in custSnap.docs) {
+          await doc.reference.delete();
+        }
+        final riderSnap = await _deliveriesCol!
+            .where('assignedRiderUid', isEqualTo: uid)
+            .get();
+        for (final doc in riderSnap.docs) {
+          await doc.reference.delete();
+        }
+      }
+      if (_transactionsCol != null) {
+        final txSnap =
+            await _transactionsCol!.where('userId', isEqualTo: uid).get();
+        for (final doc in txSnap.docs) {
+          await doc.reference.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Firestore deleteUserAccount error: $e');
+    }
+    await _localDb.clearAllData();
+  }
+
   // --- DELIVERIES COLLECTION SCHEMA & CRUD ---
 
   Future<DeliveryModel> createDelivery(DeliveryModel delivery) async {
@@ -166,6 +188,8 @@ class FirestoreService {
   }
 
   Future<DeliveryModel?> getActiveDelivery(String userId) async {
+    if (userId.isEmpty) return null;
+
     try {
       if (_deliveriesCol != null) {
         final snap = await _deliveriesCol!
@@ -177,7 +201,6 @@ class FirestoreService {
           final matches = snap.docs
               .map((doc) => DeliveryModel.fromMap(doc.data()))
               .where((d) =>
-                  userId.isEmpty ||
                   d.customerUid == userId ||
                   d.customerPhone == userId)
               .toList();
@@ -195,7 +218,6 @@ class FirestoreService {
       final matches = localDeliveries
           .map((m) => DeliveryModel.fromMap(m))
           .where((d) =>
-              userId.isEmpty ||
               d.customerUid == userId ||
               d.customerPhone == userId)
           .toList();
@@ -345,12 +367,33 @@ class FirestoreService {
           final isActive = d.status == DeliveryStatus.assigned || d.status == DeliveryStatus.pickedUp;
           return matchesRider && isActive;
         }).toList();
-        docs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return docs.isNotEmpty ? docs.first : null;
       });
     }
     return Stream.value(null);
   }
+
+
+  /// Stream of all jobs assigned to and completed/delivered by rider
+
+  Stream<List<DeliveryModel>> getRiderCompletedJobsStream(String riderUid) {
+    if (_deliveriesCol != null) {
+      return _deliveriesCol!.snapshots().map((snap) {
+        final list = snap.docs
+            .map((doc) => DeliveryModel.fromMap(doc.data()))
+            .where((d) {
+              final matchesRider = riderUid.isEmpty || d.assignedRiderUid == riderUid;
+              final isFinished = d.status == DeliveryStatus.delivered || d.status == DeliveryStatus.completed;
+              return matchesRider && isFinished;
+            })
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
+    }
+    return Stream.value([]);
+  }
+
 
   /// Real-time stream of all deliveries created by customer.
   Stream<List<DeliveryModel>> getCustomerDeliveriesStream([
@@ -403,7 +446,7 @@ class FirestoreService {
       return _transactionsCol!.snapshots().map((snap) {
         return snap.docs
             .map((doc) => TransactionModel.fromMap(doc.data()))
-            .where((tx) => userId.isEmpty || tx.userId == userId)
+            .where((tx) => userId.isNotEmpty && tx.userId == userId)
             .toList();
       });
     }
@@ -417,7 +460,7 @@ class FirestoreService {
         if (snap.docs.isNotEmpty) {
           return snap.docs
               .map((doc) => TransactionModel.fromMap(doc.data()))
-              .where((tx) => userId.isEmpty || tx.userId == userId)
+              .where((tx) => userId.isNotEmpty && tx.userId == userId)
               .toList();
         }
       }
@@ -429,11 +472,12 @@ class FirestoreService {
     if (localTxs.isNotEmpty) {
       return localTxs
           .map((m) => TransactionModel.fromMap(m))
-          .where((tx) => userId.isEmpty || tx.userId == userId)
+          .where((tx) => userId.isNotEmpty && tx.userId == userId)
           .toList();
     }
     return [];
   }
+
 
   Future<void> addTransaction(TransactionModel tx) async {
     try {
@@ -533,12 +577,15 @@ class FirestoreService {
     }
   }
 
-  // --- RIDERS COLLECTION SCHEMA & CRUD ---
+  // --- RIDERS METHODS (MAPPED TO USERS COLLECTION WITH ROLE=='rider') ---
 
   Future<List<RiderModel>> getNearbyRiders() async {
     try {
-      if (_ridersCol != null) {
-        final snap = await _ridersCol!.limit(10).get();
+      if (_usersCol != null) {
+        final snap = await _usersCol!
+            .where('role', isEqualTo: 'rider')
+            .limit(10)
+            .get();
         if (snap.docs.isNotEmpty) {
           return snap.docs
               .map((doc) => RiderModel.fromMap(doc.data()))
@@ -558,8 +605,8 @@ class FirestoreService {
 
   Future<void> updateRiderOnlineStatus(String riderUid, bool isOnline) async {
     try {
-      if (_ridersCol != null && riderUid.isNotEmpty) {
-        await _ridersCol!.doc(riderUid).set({
+      if (_usersCol != null && riderUid.isNotEmpty) {
+        await _usersCol!.doc(riderUid).set({
           'isOnline': isOnline,
           'updatedAt': DateTime.now().toIso8601String(),
         }, SetOptions(merge: true));
@@ -569,41 +616,17 @@ class FirestoreService {
     }
   }
 
-  /// Query real rider document from Firestore riders or users collection
+  /// Query real rider document from Firestore users collection (where role=='rider')
   Future<Map<String, dynamic>?> getRiderDetails(String riderUid) async {
     try {
-      if (riderUid.isNotEmpty) {
-        if (_ridersCol != null) {
-          final doc = await _ridersCol!.doc(riderUid).get();
-          if (doc.exists && doc.data() != null) {
-            return doc.data()!;
-          }
-        }
-        if (_usersCol != null) {
+      if (_usersCol != null) {
+        if (riderUid.isNotEmpty) {
           final doc = await _usersCol!.doc(riderUid).get();
           if (doc.exists && doc.data() != null) {
             return doc.data()!;
           }
         }
-      }
-
-      // Fallback: fetch the latest registered rider from Firestore 'users' collection
-      if (_usersCol != null) {
         final snap = await _usersCol!.where('role', isEqualTo: 'rider').limit(1).get();
-        if (snap.docs.isNotEmpty) {
-          return snap.docs.first.data();
-        }
-        final anyUserSnap = await _usersCol!.limit(10).get();
-        for (final userDoc in anyUserSnap.docs) {
-          final data = userDoc.data();
-          if (data['role'] == 'rider') {
-            return data;
-          }
-        }
-      }
-
-      if (_ridersCol != null) {
-        final snap = await _ridersCol!.limit(1).get();
         if (snap.docs.isNotEmpty) {
           return snap.docs.first.data();
         }
@@ -614,4 +637,5 @@ class FirestoreService {
     return null;
   }
 }
+
 

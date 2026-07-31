@@ -7,8 +7,10 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_bottom_nav.dart';
 import '../../../../core/widgets/status_badge.dart';
+import '../../../auth/presentation/auth_notifier.dart';
 import '../../domain/transaction_model.dart';
 import '../../presentation/rider_notifier.dart';
+
 
 class RiderEarningsScreen extends ConsumerStatefulWidget {
   const RiderEarningsScreen({super.key});
@@ -21,7 +23,18 @@ class RiderEarningsScreen extends ConsumerStatefulWidget {
 class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
   bool _isDailyView = true;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = ref.read(authNotifierProvider).user;
+      final uid = user?.uid ?? 'usr-rider-201';
+      ref.read(riderNotifierProvider.notifier).syncRiderTransactions(uid);
+    });
+  }
+
   void _showWithdrawalModal(double currentBalance) {
+
     final amountController = TextEditingController();
     showModalBottomSheet(
       context: context,
@@ -101,9 +114,10 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
   @override
   Widget build(BuildContext context) {
     final riderState = ref.watch(riderNotifierProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: CustomAppBar(
         title: 'GezaYo',
         userName: 'Rider Dashboard',
@@ -177,6 +191,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                       ),
                     ),
                   ),
+
+
                 ],
               ),
             ),
@@ -187,9 +203,9 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
+                color: theme.cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.cardBorder),
+                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +214,9 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Earnings Summary',
-                          style: AppTypography.headlineMedium()),
+                          style: AppTypography.headlineMedium(
+                              color: theme.colorScheme.onSurface)),
+
                       Container(
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
@@ -270,7 +288,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         }
                       }
 
-                      double maxVal = dayEarnings.reduce((a, b) => a > b ? a : b);
+                      double maxVal =
+                          dayEarnings.reduce((a, b) => a > b ? a : b);
                       if (maxVal <= 0) maxVal = 1.0;
 
                       return SizedBox(
@@ -304,7 +323,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                                     if (value.toInt() >= 0 &&
                                         value.toInt() < days.length) {
                                       final day = days[value.toInt()];
-                                      final isToday = value.toInt() == todayWeekdayIndex;
+                                      final isToday =
+                                          value.toInt() == todayWeekdayIndex;
                                       return Padding(
                                         padding: const EdgeInsets.only(top: 8),
                                         child: Text(
@@ -341,7 +361,6 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                     },
                   ),
 
-
                   const Divider(height: 24),
 
                   Row(
@@ -351,7 +370,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Today's Earnings",
-                              style: AppTypography.bodySmall()),
+                              style: AppTypography.bodySmall(
+                                  color: theme.colorScheme.onSurfaceVariant)),
                           Text(
                               'RWF ${riderState.earnedTodayRwf.toStringAsFixed(0)}',
                               style: AppTypography.headlineMedium(
@@ -362,10 +382,11 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text('Trips Completed',
-                              style: AppTypography.bodySmall()),
+                              style: AppTypography.bodySmall(
+                                  color: theme.colorScheme.onSurfaceVariant)),
                           Text('${riderState.jobsDoneToday}',
                               style: AppTypography.headlineMedium(
-                                  color: AppColors.textPrimary)),
+                                  color: theme.colorScheme.onSurface)),
                         ],
                       ),
                     ],
@@ -381,7 +402,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Recent Transactions',
-                    style: AppTypography.headlineMedium()),
+                    style: AppTypography.headlineMedium(
+                        color: theme.colorScheme.onSurface)),
                 TextButton(
                   onPressed: () {},
                   child: Text('View All',
@@ -400,7 +422,8 @@ class _RiderEarningsScreenState extends ConsumerState<RiderEarningsScreen> {
                 child: Center(
                   child: Text(
                     'No transactions yet.',
-                    style: AppTypography.bodyMedium(color: AppColors.textMuted),
+                    style: AppTypography.bodyMedium(
+                        color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
               )
@@ -443,13 +466,15 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceLight,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -478,13 +503,17 @@ class _TransactionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tx.title, style: AppTypography.titleMedium()),
+                Text(tx.title,
+                    style: AppTypography.titleMedium(
+                        color: theme.colorScheme.onSurface)),
                 const SizedBox(height: 2),
                 Text(tx.dateText,
-                    style: AppTypography.bodySmall(color: AppColors.textMuted)),
+                    style: AppTypography.bodySmall(
+                        color: theme.colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

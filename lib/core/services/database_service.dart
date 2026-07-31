@@ -15,7 +15,6 @@ class DatabaseService {
 
   static const String _keyUsers = 'gezayo_db_users';
   static const String _keyDeliveries = 'gezayo_db_deliveries';
-  static const String _keyRiders = 'gezayo_db_riders';
   static const String _keyTransactions = 'gezayo_db_transactions';
   static const String _keyNotifications = 'gezayo_db_notifications';
 
@@ -63,7 +62,8 @@ class DatabaseService {
     await saveCollection(_keyDeliveries, deliveries);
   }
 
-  List<Map<String, dynamic>> getRiders() => getCollection(_keyRiders);
+  List<Map<String, dynamic>> getRiders() =>
+      getUsers().where((u) => u['role'] == 'rider').toList();
 
   List<Map<String, dynamic>> getTransactions() =>
       getCollection(_keyTransactions);
@@ -76,4 +76,12 @@ class DatabaseService {
 
   List<Map<String, dynamic>> getNotifications() =>
       getCollection(_keyNotifications);
+
+  Future<void> clearAllData() async {
+    await _prefs.remove(_keyUsers);
+    await _prefs.remove(_keyDeliveries);
+    await _prefs.remove(_keyTransactions);
+    await _prefs.remove(_keyNotifications);
+  }
 }
+

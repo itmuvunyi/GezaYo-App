@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:confetti/confetti.dart';
 import '../../../../core/services/firestore_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -23,35 +22,20 @@ class OrderCompletionScreen extends ConsumerStatefulWidget {
       _OrderCompletionScreenState();
 }
 
-class _OrderCompletionScreenState
-    extends ConsumerState<OrderCompletionScreen> {
-  late ConfettiController _confettiController;
+class _OrderCompletionScreenState extends ConsumerState<OrderCompletionScreen> {
   double _selectedTip = 1000;
   int _userRating = 5;
-
-  @override
-  void initState() {
-    super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
-    _confettiController.play();
-  }
-
-  @override
-  void dispose() {
-    _confettiController.dispose();
-    super.dispose();
-  }
+  bool _isCompleting = false;
 
   @override
   Widget build(BuildContext context) {
+
     final deliveryState = ref.watch(deliveryNotifierProvider);
     final notifier = ref.read(deliveryNotifierProvider.notifier);
     final firestoreService = ref.watch(firestoreServiceProvider);
     final theme = Theme.of(context);
-    final targetDeliveryId = widget.deliveryId ??
-        deliveryState.activeDelivery?.id ??
-        '';
+    final targetDeliveryId =
+        widget.deliveryId ?? deliveryState.activeDelivery?.id ?? '';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -72,12 +56,11 @@ class _OrderCompletionScreenState
                 (Match m) => '${m[1]},',
               );
 
-          final totalFormatted = (delivery?.totalPaid ?? 2500)
-              .toStringAsFixed(0)
-              .replaceAllMapped(
-                RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                (Match m) => '${m[1]},',
-              );
+          final totalFormatted =
+              (delivery?.totalPaid ?? 2500).toStringAsFixed(0).replaceAllMapped(
+                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                    (Match m) => '${m[1]},',
+                  );
 
           final riderUid = delivery?.assignedRiderUid ?? '';
 
@@ -95,29 +78,12 @@ class _OrderCompletionScreenState
                       ? delivery.assignedRiderName!
                       : 'Your Rider');
 
-              return Stack(
-                children: [
-                  // Confetti Animation Overlay
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConfettiWidget(
-                      confettiController: _confettiController,
-                      blastDirectionality: BlastDirectionality.explosive,
-                      shouldLoop: false,
-                      colors: const [
-                        AppColors.primary,
-                        AppColors.primaryLight,
-                        AppColors.accentOrange,
-                        Colors.blue,
-                      ],
-                    ),
-                  ),
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
+                child: Column(
+                  children: [
 
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    child: Column(
-                      children: [
                         // Celebration Checkmark Circle
                         Container(
                           width: 84,
@@ -162,7 +128,8 @@ class _OrderCompletionScreenState
                             color: theme.cardColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                                color: theme.dividerColor.withValues(alpha: 0.3)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,7 +251,8 @@ class _OrderCompletionScreenState
                             color: theme.cardColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                                color: theme.dividerColor.withValues(alpha: 0.3)),
+                                color:
+                                    theme.dividerColor.withValues(alpha: 0.3)),
                           ),
                           child: Column(
                             children: [
@@ -300,7 +268,8 @@ class _OrderCompletionScreenState
                                       color: theme.colorScheme.onSurface)),
                               Text('How was your delivery service?',
                                   style: AppTypography.bodyMedium(
-                                      color: theme.colorScheme.onSurfaceVariant)),
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant)),
                               const SizedBox(height: 12),
                               RatingStars(
                                 rating: _userRating,
@@ -340,7 +309,8 @@ class _OrderCompletionScreenState
                               const SizedBox(height: 4),
                               Text('Show appreciation for fast delivery!',
                                   style: AppTypography.bodyMedium(
-                                      color: theme.colorScheme.onSurfaceVariant)),
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant)),
                               const SizedBox(height: 16),
                               Row(
                                 mainAxisAlignment:
@@ -370,8 +340,8 @@ class _OrderCompletionScreenState
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: theme
-                                      .colorScheme.surfaceContainerHighest,
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -388,11 +358,14 @@ class _OrderCompletionScreenState
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text('Mobile Money Pay',
-                                                style: AppTypography.titleMedium(
-                                                    color: theme.colorScheme.onSurface)),
+                                                style:
+                                                    AppTypography.titleMedium(
+                                                        color: theme.colorScheme
+                                                            .onSurface)),
                                             Text('Fast & Secure',
                                                 style: AppTypography.bodySmall(
-                                                    color: theme.colorScheme.onSurfaceVariant)),
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant)),
                                           ],
                                         ),
                                       ],
@@ -434,19 +407,50 @@ class _OrderCompletionScreenState
                             text: 'Confirm Delivery & Complete',
                             icon: Icons.check_circle_outline,
                             backgroundColor: AppColors.statusSuccess,
-                            onPressed: () async {
-                              final activeId = delivery?.id ??
-                                  deliveryState.activeDelivery?.id;
-                              if (activeId != null) {
-                                await ref
-                                    .read(deliveryNotifierProvider.notifier)
-                                    .clearActiveDelivery(activeId);
-                              }
-                              if (context.mounted) {
-                                context.go('/customer');
-                              }
-                            },
+                            isLoading: _isCompleting,
+                            onPressed: _isCompleting
+                                ? () {}
+                                : () async {
+                                    setState(() => _isCompleting = true);
+                                    try {
+                                      final activeId = delivery?.id ??
+                                          deliveryState.activeDelivery?.id;
+                                      if (activeId != null &&
+                                          activeId.isNotEmpty) {
+                                        await ref
+                                            .read(
+                                                deliveryNotifierProvider.notifier)
+                                            .clearActiveDelivery(activeId);
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Delivery confirmed! Payment released to rider.'),
+                                            backgroundColor:
+                                                AppColors.statusSuccess,
+                                          ),
+                                        );
+                                        context.go('/customer');
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Error confirming delivery: $e')),
+                                        );
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() => _isCompleting = false);
+                                      }
+                                    }
+                                  },
                           )
+
                         else if (delivery?.status == DeliveryStatus.completed)
                           PrimaryButton(
                             text: 'Back to Customer Dashboard',
@@ -465,14 +469,12 @@ class _OrderCompletionScreenState
                             },
                           ),
 
-                        const SizedBox(height: 32),
                       ],
                     ),
-                  ),
-                ],
-              );
+                  );
             },
           );
+
         },
       ),
       bottomNavigationBar: CustomBottomNav(
@@ -510,8 +512,8 @@ class _SummaryRow extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(amount,
-            style: AppTypography.titleMedium(
-                color: theme.colorScheme.onSurface)),
+            style:
+                AppTypography.titleMedium(color: theme.colorScheme.onSurface)),
       ],
     );
   }

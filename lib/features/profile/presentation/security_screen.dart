@@ -232,9 +232,10 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
             ),
             onPressed: () async {
               Navigator.of(ctx).pop();
-              await ref.read(authNotifierProvider.notifier).logout();
+              await ref.read(authNotifierProvider.notifier).deleteAccount();
               if (mounted) context.go('/auth');
             },
+
             child: const Text('Delete Permanently',
                 style: TextStyle(
                     color: Colors.white, fontWeight: FontWeight.bold)),

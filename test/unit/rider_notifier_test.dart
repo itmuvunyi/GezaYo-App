@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+
 import 'package:gezayo_app/core/services/database_service.dart';
 import 'package:gezayo_app/core/services/firestore_service.dart';
 import 'package:gezayo_app/features/rider/data/rider_repository.dart';
@@ -48,7 +49,8 @@ class MockDatabaseService implements DatabaseService {
   @override
   List<Map<String, dynamic>> getDeliveries() => [];
   @override
-  Future<void> addDelivery(Map<String, dynamic> delivery) async {}
+  Future<void> saveDelivery(Map<String, dynamic> delivery) async {}
+
   @override
   List<Map<String, dynamic>> getRiders() => [];
 }
@@ -77,7 +79,8 @@ void main() {
       expect(riderNotifier.state.activeJobId, 'GZ-101');
     });
 
-    test('completeCurrentJob clears active job awaiting customer confirmation', () async {
+    test('completeCurrentJob clears active job awaiting customer confirmation',
+        () async {
       await riderNotifier.acceptJob('GZ-101', 3000);
       await riderNotifier.completeCurrentJob(3000);
 

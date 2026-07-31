@@ -20,8 +20,7 @@ class RiderNavigationScreen extends ConsumerStatefulWidget {
       _RiderNavigationScreenState();
 }
 
-class _RiderNavigationScreenState
-    extends ConsumerState<RiderNavigationScreen> {
+class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
   bool _isPickedUp = false;
 
   @override
@@ -38,15 +37,17 @@ class _RiderNavigationScreenState
         stream: firestoreService.getDeliveryStream(jobId),
         builder: (context, snapshot) {
           final job = snapshot.data;
-          final isPickedUpInFirestore = job?.status == DeliveryStatus.pickedUp ||
-              job?.status == DeliveryStatus.delivered;
+          final isPickedUpInFirestore =
+              job?.status == DeliveryStatus.pickedUp ||
+                  job?.status == DeliveryStatus.delivered;
           final effectiveIsPickedUp = _isPickedUp || isPickedUpInFirestore;
 
           final pickupAddress = job?.pickupAddress ?? 'Kigali City Center';
           final dropoffAddress = job?.dropoffAddress ?? 'Nyarutarama, Kigali';
-          final defaultPhone = (job?.customerPhone != null && job!.customerPhone!.isNotEmpty)
-              ? job.customerPhone!
-              : '';
+          final defaultPhone =
+              (job?.customerPhone != null && job!.customerPhone!.isNotEmpty)
+                  ? job.customerPhone!
+                  : '';
 
           return FutureBuilder<UserModel?>(
             future: firestoreService.getUser(job?.customerUid ?? ''),
@@ -61,7 +62,8 @@ class _RiderNavigationScreenState
                 children: [
                   // Simulated Live GPS Map
                   const Positioned.fill(
-                    child: SimulatedMapWidget(showRoute: true, isLiveMoving: true),
+                    child:
+                        SimulatedMapWidget(showRoute: true, isLiveMoving: true),
                   ),
 
                   // Top Turn Instruction Card
@@ -134,8 +136,8 @@ class _RiderNavigationScreenState
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: theme.cardColor,
-                        borderRadius:
-                            const BorderRadius.vertical(top: Radius.circular(24)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24)),
                         boxShadow: const [
                           BoxShadow(
                               color: Colors.black12,
@@ -178,19 +180,23 @@ class _RiderNavigationScreenState
                                       children: [
                                         Text('Call Customer',
                                             style: AppTypography.titleMedium(
-                                                color: theme.colorScheme.onSurface)),
+                                                color: theme
+                                                    .colorScheme.onSurface)),
                                         if (customerPhone.isNotEmpty) ...[
                                           const SizedBox(width: 6),
                                           Text(
                                             '($customerPhone)',
                                             style: AppTypography.bodySmall(
-                                                color: theme.colorScheme.onSurfaceVariant),
+                                                color: theme.colorScheme
+                                                    .onSurfaceVariant),
                                           ),
                                         ],
                                       ],
                                     ),
                                     Text(
-                                      _isPickedUp ? 'Dropoff Stop' : 'Pickup Stop',
+                                      _isPickedUp
+                                          ? 'Dropoff Stop'
+                                          : 'Pickup Stop',
                                       style: AppTypography.bodySmall(
                                         color: _isPickedUp
                                             ? AppColors.statusSuccess
@@ -202,7 +208,9 @@ class _RiderNavigationScreenState
                               ),
                               IconButton(
                                 style: IconButton.styleFrom(
-                                  backgroundColor: AppColors.parcelBg,
+                                  backgroundColor:
+                                      theme.colorScheme.surfaceContainerHighest,
+
                                   padding: const EdgeInsets.all(10),
                                 ),
                                 icon: const Icon(Icons.phone,
@@ -229,7 +237,9 @@ class _RiderNavigationScreenState
                             child: Row(
                               children: [
                                 Icon(
-                                  effectiveIsPickedUp ? Icons.location_on : Icons.storefront,
+                                  effectiveIsPickedUp
+                                      ? Icons.location_on
+                                      : Icons.storefront,
                                   color: effectiveIsPickedUp
                                       ? AppColors.statusSuccess
                                       : AppColors.accentOrange,
@@ -237,10 +247,13 @@ class _RiderNavigationScreenState
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        effectiveIsPickedUp ? 'DROP OFF' : 'PICKUP STOP',
+                                        effectiveIsPickedUp
+                                            ? 'DROP OFF'
+                                            : 'PICKUP STOP',
                                         style: AppTypography.labelMedium(
                                           color: effectiveIsPickedUp
                                               ? AppColors.statusSuccess
@@ -248,7 +261,9 @@ class _RiderNavigationScreenState
                                         ),
                                       ),
                                       Text(
-                                        effectiveIsPickedUp ? dropoffAddress : pickupAddress,
+                                        effectiveIsPickedUp
+                                            ? dropoffAddress
+                                            : pickupAddress,
                                         style: AppTypography.titleMedium(
                                             color: theme.colorScheme.onSurface),
                                         maxLines: 1,

@@ -63,6 +63,7 @@ class RiderState {
 class RiderNotifier extends StateNotifier<RiderState> {
   final RiderRepository _repository;
   final FirestoreService _firestoreService;
+  StreamSubscription? _activeJobSubscription;
   StreamSubscription? _txSubscription;
 
   RiderNotifier({
@@ -74,9 +75,6 @@ class RiderNotifier extends StateNotifier<RiderState> {
     _loadInitialState();
   }
 
-  StreamSubscription? _activeJobSubscription;
-  StreamSubscription? _txSubscription;
-
   @override
   void dispose() {
     _activeJobSubscription?.cancel();
@@ -86,36 +84,65 @@ class RiderNotifier extends StateNotifier<RiderState> {
 
   void syncRiderTransactions(String riderUid) {
     _txSubscription?.cancel();
-    _txSubscription = _firestoreService
-        .getTransactionsStream(riderUid)
-        .listen((txs) {
-      double balance = 0.0;
-      double todayEarned = 0.0;
-      int jobsDoneCount = 0;
-      for (final tx in txs) {
-        if (tx.isPositive) {
-          balance += tx.amountRwf;
-          todayEarned += tx.amountRwf;
-          jobsDoneCount += 1;
-        } else {
-          balance -= tx.amountRwf;
+    _txSubscription =
+        _firestoreService.getTransactionsStream(riderUid).listen((txs) {
+      _updateRiderEarningsAndState(riderUid, txs);
+    });
+
+    _firestoreService.getRiderCompletedJobsStream(riderUid).listen((completedJobs) {
+      final currentTxs = List<TransactionModel>.from(state.transactions);
+      for (final job in completedJobs) {
+        final exists = currentTxs.any((t) => t.id.contains(job.id));
+        if (!exists) {
+          currentTxs.add(
+            TransactionModel(
+              id: 'tx-job-${job.id}',
+              userId: riderUid,
+              title: 'Delivery #${job.id.length > 8 ? job.id.substring(0, 8) : job.id}',
+              dateText: 'Completed',
+              amountRwf: job.estimatedFareRwf,
+              type: TransactionType.jobEarning,
+              status: TransactionStatus.completed,
+            ),
+          );
         }
       }
-      state = state.copyWith(
-        totalBalanceRwf: balance < 0 ? 0.0 : balance,
-        earnedTodayRwf: todayEarned,
-        jobsDoneToday: jobsDoneCount,
-        transactions: txs,
-        isLoading: false,
-      );
+      _updateRiderEarningsAndState(riderUid, currentTxs);
     });
   }
 
+  void _updateRiderEarningsAndState(String riderUid, List<TransactionModel> txs) {
+    double balance = 0.0;
+    double todayEarned = 0.0;
+    int jobsDoneCount = 0;
+    for (final tx in txs) {
+      if (tx.type == TransactionType.jobEarning ||
+          tx.type == TransactionType.bonus) {
+        balance += tx.amountRwf;
+        todayEarned += tx.amountRwf;
+        if (tx.type == TransactionType.jobEarning) {
+          jobsDoneCount += 1;
+        }
+      } else if (tx.type == TransactionType.deposit) {
+        balance += tx.amountRwf;
+      } else if (tx.type == TransactionType.withdrawal) {
+        balance -= tx.amountRwf;
+      }
+    }
+    state = state.copyWith(
+      totalBalanceRwf: balance < 0 ? 0.0 : balance,
+      earnedTodayRwf: todayEarned,
+      jobsDoneToday: jobsDoneCount,
+      transactions: txs,
+      isLoading: false,
+    );
+  }
+
+
   void syncActiveRiderJob(String riderUid) {
     _activeJobSubscription?.cancel();
-    _activeJobSubscription = _firestoreService
-        .getActiveRiderJobStream(riderUid)
-        .listen((activeJob) {
+    _activeJobSubscription =
+        _firestoreService.getActiveRiderJobStream(riderUid).listen((activeJob) {
       if (activeJob != null) {
         state = state.copyWith(activeJobId: activeJob.id);
       }
@@ -135,8 +162,18 @@ class RiderNotifier extends StateNotifier<RiderState> {
     );
   }
 
+  Future<void> autoSetOnline(String riderUid) async {
+    state = state.copyWith(isOnline: true);
+    await _repository.setOnlineStatus(true);
+    await updateCurrentLocation(riderUid);
+    if (riderUid.isNotEmpty) {
+      await _firestoreService.updateRiderOnlineStatus(riderUid, true);
+    }
+  }
 
-  Future<void> toggleOnlineStatus([bool? newStatus, String riderUid = 'rider-1']) async {
+  Future<void> toggleOnlineStatus(
+
+      [bool? newStatus, String riderUid = 'rider-1']) async {
     final nextStatus = newStatus ?? !state.isOnline;
     final success = await _repository.setOnlineStatus(nextStatus);
 
@@ -183,7 +220,8 @@ class RiderNotifier extends StateNotifier<RiderState> {
         ),
       );
 
-      state = state.copyWith(currentLat: pos.latitude, currentLng: pos.longitude);
+      state =
+          state.copyWith(currentLat: pos.latitude, currentLng: pos.longitude);
 
       await _firestoreService.updateRiderLocation(
         riderUid,

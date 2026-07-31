@@ -146,5 +146,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _repository.logout();
     state = state.copyWith(clearUser: true);
   }
+
+  Future<void> deleteAccount() async {
+    final uid = state.user?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      await _repository.deleteAccount(uid);
+    }
+    state = state.copyWith(clearUser: true);
+  }
 }
+
 

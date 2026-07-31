@@ -10,11 +10,50 @@ import '../../../auth/presentation/auth_notifier.dart';
 import '../../presentation/rider_notifier.dart';
 import '../../../customer/domain/delivery_model.dart';
 
-class RiderHomeScreen extends ConsumerWidget {
+class RiderHomeScreen extends ConsumerStatefulWidget {
   const RiderHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RiderHomeScreen> createState() => _RiderHomeScreenState();
+}
+
+class _RiderHomeScreenState extends ConsumerState<RiderHomeScreen> {
+  Stream<List<DeliveryModel>>? _availableJobsStream;
+  Stream<DeliveryModel?>? _activeJobStream;
+  String? _syncedRiderUid;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initStreamsAndSync();
+  }
+
+  void _initStreamsAndSync() {
+    final authState = ref.read(authNotifierProvider);
+    final firestoreService = ref.read(firestoreServiceProvider);
+    final riderUid = authState.user?.uid ?? '';
+
+    _availableJobsStream ??= firestoreService.getAvailableJobsStream();
+
+    if (riderUid != _syncedRiderUid) {
+      _syncedRiderUid = riderUid;
+      if (riderUid.isNotEmpty) {
+        _activeJobStream = firestoreService.getActiveRiderJobStream(riderUid);
+        Future.microtask(() {
+          if (mounted) {
+            final notifier = ref.read(riderNotifierProvider.notifier);
+            notifier.autoSetOnline(riderUid);
+            notifier.syncRiderTransactions(riderUid);
+            notifier.syncActiveRiderJob(riderUid);
+
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final riderState = ref.watch(riderNotifierProvider);
     final notifier = ref.read(riderNotifierProvider.notifier);
     final authState = ref.watch(authNotifierProvider);
@@ -23,10 +62,6 @@ class RiderHomeScreen extends ConsumerWidget {
     final riderUid = authState.user?.uid ?? '';
     final riderName = authState.user?.fullName ?? 'Rider';
 
-    if (riderUid.isNotEmpty) {
-      notifier.syncRiderTransactions(riderUid);
-      notifier.syncActiveRiderJob(riderUid);
-    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -106,15 +141,17 @@ class RiderHomeScreen extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.errandsBg,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('EARNED TODAY',
                             style: AppTypography.labelMedium(
-                                color: AppColors.errandsIcon)),
+                                color: theme.colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 4),
                         Text(
                           '${riderState.earnedTodayRwf.toStringAsFixed(0)} RWF',
@@ -130,20 +167,22 @@ class RiderHomeScreen extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.errandsBg,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('JOBS DONE',
                             style: AppTypography.labelMedium(
-                                color: AppColors.errandsIcon)),
+                                color: theme.colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 4),
                         Text(
                           '${riderState.jobsDoneToday}',
                           style: AppTypography.headlineLarge(
-                              color: AppColors.errandsIcon),
+                              color: theme.colorScheme.onSurface),
                         ),
                       ],
                     ),
@@ -152,14 +191,17 @@ class RiderHomeScreen extends ConsumerWidget {
               ],
             ),
 
+
             const SizedBox(height: 20),
 
             const SizedBox(height: 20),
 
             // Real-time Active Job In Progress Card (Restored from Firestore with full progress stepper)
             StreamBuilder<DeliveryModel?>(
-              stream: firestoreService.getActiveRiderJobStream(riderUid),
+              stream: _activeJobStream ??
+                  firestoreService.getActiveRiderJobStream(riderUid),
               builder: (context, activeSnap) {
+
                 final activeJob = activeSnap.data;
                 if (activeJob != null) {
                   final isAssigned =
@@ -356,9 +398,11 @@ class RiderHomeScreen extends ConsumerWidget {
 
             // Real-time Available Jobs from Firestore
             StreamBuilder<List<DeliveryModel>>(
-              stream: firestoreService.getAvailableJobsStream(),
+              stream: _availableJobsStream ??
+                  firestoreService.getAvailableJobsStream(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
                   return const Center(
                     child: Padding(
                       padding: EdgeInsets.all(40),
@@ -366,6 +410,7 @@ class RiderHomeScreen extends ConsumerWidget {
                     ),
                   );
                 }
+
 
                 final jobs = snapshot.data ?? [];
 
@@ -574,7 +619,8 @@ class _RiderJobCard extends StatelessWidget {
                 width: 70,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: AppColors.parcelBg,
+                  color: theme.colorScheme.surfaceContainerHighest,
+
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(

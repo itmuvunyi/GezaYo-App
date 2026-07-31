@@ -71,35 +71,13 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
 
   @override
   Future<DeliveryModel?> getActiveDelivery([String userId = '']) async {
-    final firestoreActive =
-        await _firestoreService.getActiveDelivery(userId);
-    if (firestoreActive != null) {
-      return firestoreActive;
-    }
-
-    final response = await _apiService.getActiveDelivery();
-    if (response.isSuccess && response.data != null) {
-      final model = DeliveryModel.fromMap(response.data!);
-      if (userId.isEmpty || model.customerUid == userId || model.customerPhone == userId) {
-        return model;
-      }
-    }
-    return null;
+    if (userId.isEmpty) return null;
+    return await _firestoreService.getActiveDelivery(userId);
   }
-
 
   @override
   Future<List<RiderModel>> fetchNearbyRiders() async {
-    final firestoreRiders = await _firestoreService.getNearbyRiders();
-    if (firestoreRiders.isNotEmpty) {
-      return firestoreRiders;
-    }
-
-    final response = await _apiService.getNearbyRiders();
-    if (response.isSuccess && response.data != null) {
-      return response.data!.map((m) => RiderModel.fromMap(m)).toList();
-    }
-    return [];
+    return await _firestoreService.getNearbyRiders();
   }
 
   @override

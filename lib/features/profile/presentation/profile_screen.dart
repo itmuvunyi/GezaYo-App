@@ -7,6 +7,7 @@ import '../../../core/widgets/custom_app_bar.dart';
 import '../../../core/widgets/custom_bottom_nav.dart';
 import '../../../core/services/storage_service.dart';
 import '../../auth/presentation/auth_notifier.dart';
+import '../../customer/presentation/delivery_notifier.dart';
 
 final themeModeNotifierProvider =
     StateNotifierProvider<ThemeModeNotifier, String>((ref) {
@@ -28,8 +29,9 @@ class ThemeModeNotifier extends StateNotifier<String> {
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  void _showLogoutConfirmation(BuildContext context, AuthNotifier notifier) {
+  void _showLogoutConfirmation(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final notifier = ref.read(authNotifierProvider.notifier);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -78,6 +80,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
             onPressed: () async {
               Navigator.of(ctx).pop();
+              ref.read(deliveryNotifierProvider.notifier).resetState();
               await notifier.logout();
               if (context.mounted) context.go('/auth');
             },
@@ -90,6 +93,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+
 
   void _showThemeDialog(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -150,8 +154,8 @@ class ProfileScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
     final user = authState.user;
-    final notifier = ref.read(authNotifierProvider.notifier);
     final themeMode = ref.watch(themeModeNotifierProvider);
+
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -255,30 +259,6 @@ class ProfileScreen extends ConsumerWidget {
                   const Divider(height: 1),
 
                   ListTile(
-                    leading:
-                        Icon(Icons.language, color: theme.colorScheme.primary),
-                    title: Text(
-                      'Language',
-                      style: AppTypography.titleMedium(
-                          color: theme.colorScheme.onSurface),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          authState.selectedLanguage,
-                          style: AppTypography.bodyMedium(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                        const Icon(Icons.chevron_right,
-                            color: AppColors.textMuted),
-                      ],
-                    ),
-                    onTap: () => context.push('/settings/language'),
-                  ),
-                  const Divider(height: 1),
-
-                  ListTile(
                     leading: Icon(Icons.notifications_none,
                         color: theme.colorScheme.primary),
                     title: Text(
@@ -337,7 +317,7 @@ class ProfileScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: () => _showLogoutConfirmation(context, notifier),
+                onPressed: () => _showLogoutConfirmation(context, ref),
                 icon: const Icon(Icons.logout, color: AppColors.statusError),
                 label: Text(
                   'Logout',
@@ -345,6 +325,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
 
             const SizedBox(height: 32),
           ],

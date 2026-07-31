@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/notification_service.dart';
+
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -37,6 +39,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         actions: [
           TextButton(
             onPressed: () {
+              ref.read(notificationNotifierProvider.notifier).markAllAsRead();
               setState(() {
                 _readNotifIds.add('ALL');
               });
@@ -47,6 +50,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 ),
               );
             },
+
             child: Text(
               'Mark as Read',
               style: AppTypography.labelMedium(color: AppColors.primary),

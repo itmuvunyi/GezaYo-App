@@ -38,14 +38,66 @@ class LiveTrackingScreen extends ConsumerWidget {
             ? firestoreService.getDeliveryStream(activeDeliveryId)
             : Stream.value(deliveryState.activeDelivery),
         builder: (context, snapshot) {
+
           final delivery = snapshot.data ?? deliveryState.activeDelivery;
 
-          final isSearching = delivery?.status == DeliveryStatus.searching;
-          final isAssigned = delivery?.status == DeliveryStatus.assigned;
-          final isPickedUp = delivery?.status == DeliveryStatus.pickedUp;
-          final isDelivered = delivery?.status == DeliveryStatus.delivered;
 
-          final riderUid = delivery?.assignedRiderUid ?? '';
+          if (delivery == null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.location_off_outlined,
+                      size: 64,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Active Order to Track',
+                      style: AppTypography.headlineMedium(
+                          color: theme.colorScheme.onSurface),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You do not have any active delivery request at the moment.\nPost a new delivery to track your rider live here!',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMedium(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => context.go('/customer'),
+                      icon: const Icon(Icons.add_location_alt,
+                          color: Colors.white),
+                      label: const Text(
+                        'Post Delivery Request',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final isSearching = delivery.status == DeliveryStatus.searching;
+          final isAssigned = delivery.status == DeliveryStatus.assigned;
+          final isPickedUp = delivery.status == DeliveryStatus.pickedUp;
+          final isDelivered = delivery.status == DeliveryStatus.delivered;
+
+          final riderUid = delivery.assignedRiderUid ?? '';
+
 
           return FutureBuilder<Map<String, dynamic>?>(
             future: riderUid.isNotEmpty

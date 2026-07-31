@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:equatable/equatable.dart';
 
-enum TransactionType { jobEarning, withdrawal, bonus }
+enum TransactionType { jobEarning, withdrawal, bonus, deposit }
+
 
 enum TransactionStatus { completed, processed, pending }
 

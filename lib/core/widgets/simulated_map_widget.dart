@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_cancellable_tile_provider/flutter_map_cancellable_tile_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../theme/app_colors.dart';
@@ -36,12 +38,64 @@ class _SimulatedMapWidgetState extends State<SimulatedMapWidget> {
   Timer? _animTimer;
   double _progress = 0.2; // 0.0 to 1.0 along route
   bool _forward = true;
+  List<LatLng> _routePoints = [];
 
   @override
   void initState() {
     super.initState();
     if (widget.isLiveMoving) {
       _startRiderMovement();
+    }
+    _fetchRoadRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant SimulatedMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pickupLocation != widget.pickupLocation ||
+        oldWidget.dropoffLocation != widget.dropoffLocation) {
+      _fetchRoadRoute();
+    }
+  }
+
+  Future<void> _fetchRoadRoute() async {
+    const defaultPickupLoc = LatLng(-1.9536, 30.0917);
+    const defaultDropoffLoc = LatLng(-1.9612, 30.1250);
+
+    final start = widget.pickupLocation ?? defaultPickupLoc;
+    final end = widget.dropoffLocation ?? defaultDropoffLoc;
+
+    try {
+      final url = Uri.parse(
+          'https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson');
+      final res = await http.get(url).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        final coords = data['routes'][0]['geometry']['coordinates'] as List;
+        final fetchedPoints = coords
+            .map((c) => LatLng(
+                (c[1] as num).toDouble(), (c[0] as num).toDouble()))
+            .toList();
+        if (mounted && fetchedPoints.isNotEmpty) {
+          setState(() {
+            _routePoints = fetchedPoints;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('OSRM routing fetch note: $e');
+    }
+
+    // Dynamic Interpolation Fallback (15 smooth waypoints)
+    final fallback = <LatLng>[];
+    for (int i = 0; i <= 15; i++) {
+      fallback.add(_interpolate(start, end, i / 15.0));
+    }
+    if (mounted) {
+      setState(() {
+        _routePoints = fallback;
+      });
     }
   }
 
@@ -84,17 +138,7 @@ class _SimulatedMapWidgetState extends State<SimulatedMapWidget> {
     final effectiveDropoff = widget.dropoffLocation ?? defaultDropoffLoc;
     final mapCenter = widget.pickupLocation ?? kigaliCenter;
 
-    // Calculate moving rider position along pickup -> dropoff polyline
-    final movingRiderPos = _interpolate(effectivePickup, effectiveDropoff, _progress);
-
-    final effectiveRiders = widget.riderLocations.isNotEmpty
-        ? widget.riderLocations
-        : (widget.showRiderPins
-            ? [
-                movingRiderPos,
-                const LatLng(-1.9400, 30.0550),
-              ]
-            : <LatLng>[]);
+    final effectiveRiders = widget.riderLocations;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -110,21 +154,22 @@ class _SimulatedMapWidgetState extends State<SimulatedMapWidget> {
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.gezayo_app',
+                tileProvider: CancellableNetworkTileProvider(),
               ),
+
               if (widget.showRoute)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: [
-                        mapCenter,
-                        effectivePickup,
-                        effectiveDropoff,
-                      ],
+                      points: _routePoints.isNotEmpty
+                          ? _routePoints
+                          : [effectivePickup, effectiveDropoff],
                       strokeWidth: 5.0,
                       color: AppColors.primary,
                     ),
                   ],
                 ),
+
               MarkerLayer(
                 markers: [
                   // Pickup Marker

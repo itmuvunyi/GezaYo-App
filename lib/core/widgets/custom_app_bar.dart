@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/notification_service.dart';
+
+class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final String title;
   final String avatarUrl;
   final String userName;
@@ -31,8 +34,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(64);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final notifState = ref.watch(notificationNotifierProvider);
+    final showBadge = hasUnreadNotifications || notifState.hasUnread;
 
     return AppBar(
       automaticallyImplyLeading: false,
@@ -76,16 +81,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: onNotificationTap ??
                       () => context.push('/settings/notifications'),
                 ),
-                if (hasUnreadNotifications)
+                if (showBadge)
                   Positioned(
                     right: 12,
                     top: 12,
                     child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
                         color: AppColors.statusSuccess,
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
                       ),
                     ),
                   ),
@@ -95,5 +101,5 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
-
 }
+

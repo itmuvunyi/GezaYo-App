@@ -247,69 +247,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
               const SizedBox(height: 20),
 
-              // Role Selector Switcher (Customer vs Rider) - ALWAYS VISIBLE
-              Container(
-                decoration: BoxDecoration(
-                  color: theme.cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.colorScheme.outline),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedRole = 'customer'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: _selectedRole == 'customer'
-                                ? theme.colorScheme.primary
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Customer Account',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.labelLarge(
-                              color: _selectedRole == 'customer'
-                                  ? Colors.white
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedRole = 'rider'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: _selectedRole == 'rider'
-                                ? theme.colorScheme.primary
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Rider Account',
-                            textAlign: TextAlign.center,
-                            style: AppTypography.labelLarge(
-                              color: _selectedRole == 'rider'
-                                  ? Colors.white
-                                  : theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
               if (_isSignUp) ...[
                 AppTextField(
                   label: 'Full Name',
@@ -370,6 +307,68 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         _obscureConfirmPassword = !_obscureConfirmPassword),
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                // Role Selector Switcher (Customer vs Rider) - ONLY ON SIGN UP BEFORE BUTTON
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.colorScheme.outline),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedRole = 'customer'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _selectedRole == 'customer'
+                                  ? theme.colorScheme.primary
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'Customer Account',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.labelLarge(
+                                color: _selectedRole == 'customer'
+                                    ? Colors.white
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _selectedRole = 'rider'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _selectedRole == 'rider'
+                                  ? theme.colorScheme.primary
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'Rider Account',
+                              textAlign: TextAlign.center,
+                              style: AppTypography.labelLarge(
+                                color: _selectedRole == 'rider'
+                                    ? Colors.white
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
 
               if (authState.errorMessage != null) ...[
@@ -409,6 +408,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 isLoading: authState.isLoading,
                 onPressed: _handleAuth,
               ),
+
 
               const SizedBox(height: 24),
 

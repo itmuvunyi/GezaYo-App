@@ -87,9 +87,10 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                     (Match m) => '${m[1]},',
                   );
 
-          final defaultPhone = (job.customerPhone != null && job.customerPhone!.isNotEmpty)
-              ? job.customerPhone!
-              : '+250788123456';
+          final defaultPhone =
+              (job.customerPhone != null && job.customerPhone!.isNotEmpty)
+                  ? job.customerPhone!
+                  : '+250788123456';
 
           return FutureBuilder<UserModel?>(
             future: firestoreService.getUser(job.customerUid),
@@ -111,8 +112,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                   // Floating Top Status Header Banner
                   Container(
                     width: double.infinity,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 16),
                     color: const Color(0xFF1E293B),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -154,7 +155,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               children: [
@@ -175,12 +177,14 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                           Text(
                                             customerName,
                                             style: AppTypography.titleLarge(
-                                                color: theme.colorScheme.onSurface),
+                                                color: theme
+                                                    .colorScheme.onSurface),
                                           ),
                                           Row(
                                             children: [
                                               const Icon(Icons.star,
-                                                  size: 14, color: Colors.amber),
+                                                  size: 14,
+                                                  color: Colors.amber),
                                               const SizedBox(width: 4),
                                               Text('4.9 Rating',
                                                   style: AppTypography.bodySmall(
@@ -193,7 +197,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                                           .onSurfaceVariant)),
                                               const SizedBox(width: 8),
                                               const Icon(Icons.phone,
-                                                  size: 12, color: AppColors.primary),
+                                                  size: 12,
+                                                  color: AppColors.primary),
                                               const SizedBox(width: 4),
                                               Text(
                                                 customerPhone,
@@ -208,13 +213,15 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                     ),
                                     IconButton(
                                       style: IconButton.styleFrom(
-                                        backgroundColor: AppColors.statusSuccessBg,
+                                        backgroundColor:
+                                            AppColors.statusSuccessBg,
                                         padding: const EdgeInsets.all(10),
                                       ),
                                       icon: const Icon(Icons.phone,
                                           color: AppColors.primary),
-                                      onPressed: () => PhoneHelper.makePhoneCall(
-                                          context, customerPhone),
+                                      onPressed: () =>
+                                          PhoneHelper.makePhoneCall(
+                                              context, customerPhone),
                                     ),
                                   ],
                                 ),
@@ -222,7 +229,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                 Row(
                                   children: [
                                     const Icon(Icons.circle,
-                                        color: AppColors.accentOrange, size: 12),
+                                        color: AppColors.accentOrange,
+                                        size: 12),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
@@ -231,11 +239,12 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                         children: [
                                           Text('PICKUP',
                                               style: AppTypography.labelMedium(
-                                                  color: AppColors.accentOrange)),
+                                                  color:
+                                                      AppColors.accentOrange)),
                                           Text(job.pickupAddress,
                                               style: AppTypography.titleMedium(
-                                                  color:
-                                                      theme.colorScheme.onSurface)),
+                                                  color: theme
+                                                      .colorScheme.onSurface)),
                                         ],
                                       ),
                                     ),
@@ -256,7 +265,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                 Row(
                                   children: [
                                     const Icon(Icons.circle,
-                                        color: AppColors.statusSuccess, size: 12),
+                                        color: AppColors.statusSuccess,
+                                        size: 12),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
@@ -265,11 +275,12 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                         children: [
                                           Text('DROP-OFF',
                                               style: AppTypography.labelMedium(
-                                                  color: AppColors.statusSuccess)),
+                                                  color:
+                                                      AppColors.statusSuccess)),
                                           Text(job.dropoffAddress,
                                               style: AppTypography.titleMedium(
-                                                  color:
-                                                      theme.colorScheme.onSurface)),
+                                                  color: theme
+                                                      .colorScheme.onSurface)),
                                         ],
                                       ),
                                     ),
@@ -288,39 +299,45 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('PACKAGE DETAILS',
                                     style: AppTypography.labelMedium(
-                                        color: theme.colorScheme.onSurfaceVariant)),
+                                        color: theme
+                                            .colorScheme.onSurfaceVariant)),
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: AppColors.parcelBg,
+                                        color: theme
+                                            .colorScheme.surfaceContainerHighest,
+
                                         borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: const Icon(Icons.inventory_2_outlined,
+                                      child: const Icon(
+                                          Icons.inventory_2_outlined,
                                           color: AppColors.primary),
                                     ),
                                     const SizedBox(width: 12),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                             'Type: ${job.packageType.toUpperCase()}',
                                             style: AppTypography.titleLarge(
-                                                color:
-                                                    theme.colorScheme.onSurface)),
+                                                color: theme
+                                                    .colorScheme.onSurface)),
                                         Text('Weight: ${job.weightClass}',
                                             style: AppTypography.bodySmall(
-                                                color: theme
-                                                    .colorScheme.onSurfaceVariant)),
+                                                color: theme.colorScheme
+                                                    .onSurfaceVariant)),
                                       ],
                                     ),
                                   ],
@@ -344,7 +361,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                           child: Text(
                                             '"${job.instructions}"',
                                             style: AppTypography.bodySmall(
-                                                color: theme.colorScheme.onSurface),
+                                                color: theme
+                                                    .colorScheme.onSurface),
                                           ),
                                         ),
                                       ],
@@ -364,32 +382,37 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                               color: theme.cardColor,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: theme.dividerColor.withValues(alpha: 0.3)),
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text('PAYMENT BREAKDOWN',
                                     style: AppTypography.labelMedium(
-                                        color: theme.colorScheme.onSurfaceVariant)),
+                                        color: theme
+                                            .colorScheme.onSurfaceVariant)),
                                 const SizedBox(height: 12),
                                 _FareRow(
                                     label: 'Offered Fare',
                                     value: 'RWF $fareFormatted'),
                                 const Divider(height: 20),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text('Total Earnings',
                                             style: AppTypography.headlineMedium(
-                                                color:
-                                                    theme.colorScheme.onSurface)),
+                                                color: theme
+                                                    .colorScheme.onSurface)),
                                         Text('UPON DELIVERY',
                                             style: AppTypography.labelMedium(
-                                                color: AppColors.statusSuccess)),
+                                                color:
+                                                    AppColors.statusSuccess)),
                                       ],
                                     ),
                                     Text('RWF $fareFormatted',
@@ -414,7 +437,8 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                       color: theme.cardColor,
                       border: Border(
                           top: BorderSide(
-                              color: theme.dividerColor.withValues(alpha: 0.3))),
+                              color:
+                                  theme.dividerColor.withValues(alpha: 0.3))),
                     ),
                     child: Row(
                       children: [
@@ -479,9 +503,8 @@ class _FareRow extends StatelessWidget {
         Text(
           value,
           style: AppTypography.titleMedium(
-            color: isBonus
-                ? AppColors.statusSuccess
-                : theme.colorScheme.onSurface,
+            color:
+                isBonus ? AppColors.statusSuccess : theme.colorScheme.onSurface,
           ),
         ),
       ],
