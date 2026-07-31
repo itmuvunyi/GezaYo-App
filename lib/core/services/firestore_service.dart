@@ -291,7 +291,7 @@ class FirestoreService {
     }
   }
 
-  /// Customer confirms order receipt — updates status to 'completed' and credits rider earnings in Firestore
+  /// Customer confirms order receipt — updates status to 'completed', credits rider earnings, and debits customer balance in Firestore
   Future<void> confirmDeliveryByCustomer(String deliveryId) async {
     try {
       if (_deliveriesCol != null && deliveryId.isNotEmpty) {
@@ -299,6 +299,7 @@ class FirestoreService {
         if (doc.exists && doc.data() != null) {
           final data = doc.data()!;
           final riderUid = data['assignedRiderUid'] ?? '';
+          final customerUid = data['customerUid'] ?? '';
           final fare = (data['estimatedFareRwf'] ?? 0.0).toDouble();
 
           await _deliveriesCol!.doc(deliveryId).update({
@@ -306,9 +307,10 @@ class FirestoreService {
             'customerConfirmedAt': DateTime.now().toIso8601String(),
           });
 
+          // 1. Credit Rider Earnings
           if (riderUid.toString().isNotEmpty && fare > 0) {
-            final tx = TransactionModel(
-              id: 'tx-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
+            final riderTx = TransactionModel(
+              id: 'tx-rider-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
               userId: riderUid.toString(),
               title: 'Delivery #${deliveryId.substring(0, deliveryId.length > 8 ? 8 : deliveryId.length)}',
               dateText: 'Just now',
@@ -316,7 +318,21 @@ class FirestoreService {
               type: TransactionType.jobEarning,
               status: TransactionStatus.completed,
             );
-            await addTransaction(tx);
+            await addTransaction(riderTx);
+          }
+
+          // 2. Debit Customer Wallet Balance
+          if (customerUid.toString().isNotEmpty && fare > 0) {
+            final customerTx = TransactionModel(
+              id: 'tx-cust-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
+              userId: customerUid.toString(),
+              title: 'Delivery Fee #${deliveryId.substring(0, deliveryId.length > 8 ? 8 : deliveryId.length)}',
+              dateText: 'Just now',
+              amountRwf: fare,
+              type: TransactionType.withdrawal,
+              status: TransactionStatus.completed,
+            );
+            await addTransaction(customerTx);
           }
         }
       }
@@ -324,6 +340,7 @@ class FirestoreService {
       debugPrint('Firestore confirmDeliveryByCustomer error: $e');
     }
   }
+
 
   Future<void> updateDelivery(
       String deliveryId, Map<String, dynamic> updates) async {

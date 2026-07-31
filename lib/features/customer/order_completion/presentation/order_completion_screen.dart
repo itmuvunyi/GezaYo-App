@@ -148,7 +148,8 @@ class _OrderCompletionScreenState extends ConsumerState<OrderCompletionScreen> {
                               _SummaryRow(
                                 title:
                                     'Package: ${delivery?.packageType ?? 'Parcel'}',
-                                amount: '${delivery?.weightClass ?? 'Light'}',
+                                amount: delivery?.weightClass ?? 'Light',
+
                               ),
                               const SizedBox(height: 8),
                               _SummaryRow(
@@ -348,38 +349,35 @@ class _OrderCompletionScreenState extends ConsumerState<OrderCompletionScreen> {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.smartphone,
-                                            color: AppColors.statusSuccess),
-                                        const SizedBox(width: 8),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Mobile Money Pay',
-                                                style:
-                                                    AppTypography.titleMedium(
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.smartphone,
+                                              color: AppColors.statusSuccess),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text('Mobile Money Pay',
+                                                    style:
+                                                        AppTypography.titleMedium(
+                                                            color: theme.colorScheme
+                                                                .onSurface)),
+                                                Text('Fast & Secure',
+                                                    style: AppTypography.bodySmall(
                                                         color: theme.colorScheme
-                                                            .onSurface)),
-                                            Text('Fast & Secure',
-                                                style: AppTypography.bodySmall(
-                                                    color: theme.colorScheme
-                                                        .onSurfaceVariant)),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(8)),
+                                                            .onSurfaceVariant)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      onPressed: () {
+                                    ),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () {
                                         notifier.addTip(_selectedTip);
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
@@ -388,12 +386,23 @@ class _OrderCompletionScreenState extends ConsumerState<OrderCompletionScreen> {
                                                   'Added ${_selectedTip.toStringAsFixed(0)} RWF tip via MoMo!')),
                                         );
                                       },
-                                      child: const Text('Add Tip',
-                                          style:
-                                              TextStyle(color: Colors.white)),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 10),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Text('Add Tip',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600)),
+                                      ),
                                     ),
                                   ],
                                 ),
+
                               ),
                             ],
                           ),

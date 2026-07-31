@@ -107,8 +107,8 @@ class LiveTrackingScreen extends ConsumerWidget {
               final riderMap = riderSnap.data;
               final riderName = riderMap?['fullName'] ??
                   riderMap?['name'] ??
-                  (delivery?.assignedRiderName != null &&
-                          delivery!.assignedRiderName!.isNotEmpty
+                  (delivery.assignedRiderName != null &&
+                          delivery.assignedRiderName!.isNotEmpty
                       ? delivery.assignedRiderName!
                       : (riderUid.isNotEmpty
                           ? 'Rider #${riderUid.substring(0, riderUid.length > 8 ? 8 : riderUid.length)}'
@@ -116,15 +116,15 @@ class LiveTrackingScreen extends ConsumerWidget {
 
               final riderPhone = riderMap?['phoneNumber'] ??
                   riderMap?['phone'] ??
-                  (delivery?.assignedRiderPhone != null &&
-                          delivery!.assignedRiderPhone!.isNotEmpty
+                  (delivery.assignedRiderPhone != null &&
+                          delivery.assignedRiderPhone!.isNotEmpty
                       ? delivery.assignedRiderPhone!
                       : '');
 
               final riderRating = (riderMap?['rating'] ??
-                      delivery?.assignedRiderRating ??
-                      5.0)
+                      delivery.assignedRiderRating)
                   .toDouble();
+
 
               final vehicleDetails = riderMap?['vehicleType'] ??
                   riderMap?['vehicle'] ??

@@ -298,9 +298,10 @@ class _RiderNavigationScreenState extends ConsumerState<RiderNavigationScreen> {
                               onPressed: () async {
                                 await notifier.completeCurrentJob(
                                     job?.estimatedFareRwf ?? 2500.0);
-                                if (mounted) {
+                                if (mounted && context.mounted) {
                                   context.go('/rider');
                                 }
+
                               },
                             ),
                         ],

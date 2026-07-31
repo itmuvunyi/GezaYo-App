@@ -396,7 +396,16 @@ class DeliveryJobDetailsScreen extends ConsumerWidget {
                                 _FareRow(
                                     label: 'Offered Fare',
                                     value: 'RWF $fareFormatted'),
+                                if (job.tipAmount > 0) ...[
+                                  const SizedBox(height: 8),
+                                  _FareRow(
+                                      label: 'Customer Tip',
+                                      value:
+                                          '+RWF ${job.tipAmount.toStringAsFixed(0)}',
+                                      isBonus: true),
+                                ],
                                 const Divider(height: 20),
+
                                 Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,

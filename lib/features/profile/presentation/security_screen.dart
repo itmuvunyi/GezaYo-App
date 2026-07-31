@@ -151,7 +151,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                             .read(authNotifierProvider.notifier)
                             .changePassword(currentPass, newPass);
 
-                        if (mounted) {
+                        if (context.mounted && ctx.mounted) {
                           if (success) {
                             Navigator.of(ctx).pop();
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +161,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                               ),
                             );
                           } else {
+
                             final authErr = ref.read(authNotifierProvider).errorMessage;
                             setDialogState(() {
                               isSubmitting = false;

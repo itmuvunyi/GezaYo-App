@@ -119,7 +119,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             value: 'light',
+            // ignore: deprecated_member_use
             groupValue: currentTheme,
+            // ignore: deprecated_member_use
             onChanged: (val) {
               if (val != null) {
                 ref.read(themeModeNotifierProvider.notifier).setTheme(val);
@@ -136,7 +138,9 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             value: 'dark',
+            // ignore: deprecated_member_use
             groupValue: currentTheme,
+            // ignore: deprecated_member_use
             onChanged: (val) {
               if (val != null) {
                 ref.read(themeModeNotifierProvider.notifier).setTheme(val);
@@ -144,6 +148,7 @@ class ProfileScreen extends ConsumerWidget {
               }
             },
           ),
+
         ],
       ),
     );

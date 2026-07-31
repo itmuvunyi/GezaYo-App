@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/backend_api_service.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../rider/domain/transaction_model.dart';
 import '../domain/delivery_model.dart';
 import '../domain/rider_model.dart';
+
 
 final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
   final api = ref.watch(backendApiServiceProvider);
@@ -106,6 +108,37 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     final newTip = current.tipAmount + tipRwf;
     final updates = {'tipAmount': newTip};
     await _firestoreService.updateDelivery(current.id, updates);
+
+    // 1. Debit Customer Wallet Balance for Tip
+    final customerUid = current.customerUid;
+    if (customerUid.isNotEmpty && tipRwf > 0) {
+      final custTx = TransactionModel(
+        id: 'tx-tip-cust-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
+        userId: customerUid,
+        title: 'Rider Tip #${current.id.substring(0, current.id.length > 8 ? 8 : current.id.length)}',
+        dateText: 'Just now',
+        amountRwf: tipRwf,
+        type: TransactionType.withdrawal,
+        status: TransactionStatus.completed,
+      );
+      await _firestoreService.addTransaction(custTx);
+    }
+
+    // 2. Credit Rider Bonus Balance for Tip
+    final riderUid = current.assignedRiderUid ?? '';
+    if (riderUid.isNotEmpty && tipRwf > 0) {
+      final riderTx = TransactionModel(
+        id: 'tx-tip-rider-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
+        userId: riderUid,
+        title: 'Tip Bonus #${current.id.substring(0, current.id.length > 8 ? 8 : current.id.length)}',
+        dateText: 'Just now',
+        amountRwf: tipRwf,
+        type: TransactionType.bonus,
+        status: TransactionStatus.completed,
+      );
+      await _firestoreService.addTransaction(riderTx);
+    }
+
     final response =
         await _apiService.updateDeliveryStatus(current.id, updates);
     if (response.isSuccess && response.data != null) {
@@ -113,6 +146,7 @@ class DeliveryRepositoryImpl implements DeliveryRepository {
     }
     return current.copyWith(tipAmount: newTip);
   }
+
 
   @override
   Future<DeliveryModel?> setRating(DeliveryModel current, int stars) async {

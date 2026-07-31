@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/firestore_service.dart';
+
 
 class AppNotification {
   final String id;
@@ -41,9 +41,7 @@ class NotificationState {
 }
 
 class NotificationNotifier extends StateNotifier<NotificationState> {
-  final FirestoreService _firestoreService;
-
-  NotificationNotifier(this._firestoreService)
+  NotificationNotifier()
       : super(NotificationState(
           notifications: [
             AppNotification(
@@ -64,7 +62,6 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
           ],
           hasUnread: true,
         ));
-
 
   void notifyNewDelivery({required String packageType, required String pickupAddress}) {
     final notif = AppNotification(
@@ -105,6 +102,6 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
 
 final notificationNotifierProvider =
     StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return NotificationNotifier(firestoreService);
+  return NotificationNotifier();
 });
+

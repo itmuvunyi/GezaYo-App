@@ -100,10 +100,11 @@ class RiderMatchingScreen extends ConsumerWidget {
                         children: [
                           Container(
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.primarySubtle,
                               shape: BoxShape.circle,
                             ),
+
                             child: const CircularProgressIndicator(
                               color: AppColors.primary,
                               strokeWidth: 3,
